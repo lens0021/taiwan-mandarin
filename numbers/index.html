@@ -182,11 +182,13 @@ function fillWallet(n){
   while(w.reduce((a,b)=>a+b,0)<n||w.length<4);
   return w;
 }
-// Best payment from the wallet: the smallest total that covers the price, then the fewest pieces.
+// Pieces left in hand after paying P and getting change back in the fewest pieces (Japanese-style rounding counts).
+const after=(P,n,W)=>W-P.length+fewest(P.reduce((a,b)=>a+b,0)-n).length;
+// Best payment from the wallet: fewest pieces left in hand, then the smallest total.
 function bestPay(w,n){
   const cnt={};w.forEach(v=>cnt[v]=(cnt[v]||0)+1);const ds=Object.keys(cnt).map(Number);let best=null;
   (function rec(i,sum,pieces){
-    if(i===ds.length){if(sum>=n&&(!best||sum<best.sum||sum===best.sum&&pieces.length<best.p.length))best={sum,p:pieces.slice()};return}
+    if(i===ds.length){if(sum>=n){const c=after(pieces,n,w.length);if(!best||c<best.c||c===best.c&&sum<best.sum)best={sum,c,p:pieces.slice()}}return}
     for(let k=0;k<=cnt[ds[i]];k++){rec(i+1,sum+k*ds[i],pieces);pieces.push(ds[i])}
     for(let k=0;k<=cnt[ds[i]];k++)pieces.pop();
   })(0,0,[]);
@@ -232,8 +234,10 @@ function newQ(){
 function check(){
   if(answered){newQ();return}
   if(!tray.length)return;
-  // Right = covers the price with nothing extra: no single piece could be taken back.
-  const v=tray.reduce((a,b)=>a+b,0),short=v<q.n,extra=!short&&tray.find(x=>v-x>=q.n),ok=!short&&!extra;answered=true;drawTray();
+  // Right = covers the price and every piece earns its place: taking any one back would leave you with more pieces
+  // after change (so 105 for 95 to get a 10 back is right, 110 for 95 is not).
+  const v=tray.reduce((a,b)=>a+b,0),short=v<q.n,W=tray.length+wallet.length,cost=short?0:after(tray,q.n,W);
+  const extra=!short&&tray.find((x,i)=>v-x>=q.n&&after(tray.filter((_,j)=>j!==i),q.n,W)<=cost),ok=!short&&!extra;answered=true;drawTray();
   if(!ok&&!miss.includes(q.n))miss.push(q.n);
   S.log.push({d:today(),n:q.n,a:v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
   if(S.log.length>2000)S.log=S.log.slice(-2000);
@@ -246,7 +250,7 @@ function check(){
   $("res").hidden=false;$("res").className="res "+(ok?"ok":"no");
   // Digits appear only now, after the answer.
   $("res").textContent=ok?"정답! "+q.n+"元에 "+v+"元을 냈어요"+(v>q.n?" (거스름돈 "+(v-q.n)+"元)":"")+".":
-    short?"부족해요. 가격은 "+q.n+"元인데 "+v+"元을 냈어요.":"충분하지만 안 내도 되는 돈이 섞여 있어요 (예: "+extra+"元). 가격은 "+q.n+"元이에요.";
+    short?"부족해요. 가격은 "+q.n+"元인데 "+v+"元을 냈어요.":"충분하지만 "+extra+"元은 그대로 거스름돈으로 돌아와요. 가격은 "+q.n+"元이에요.";
   const s=zh(q.n);$("ansHan").textContent=s;$("ansZy").textContent=zhuyin(s);
   $("ansNote").textContent=q.n+"元 · 눌러서 다시 듣기"+(ok?"":" · 이렇게 내면 좋아요:");
   $("ansMoney").innerHTML="";if(!ok)bestPay(wallet.concat(tray),q.n).forEach(x=>$("ansMoney").append(money(x)));
