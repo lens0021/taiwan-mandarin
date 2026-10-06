@@ -66,8 +66,9 @@ ul.tips li{margin:3px 0}
 .han-i{font-family:var(--f-han);font-weight:700}
 iframe{width:100%;border:0;display:block;min-height:600px;background:var(--bg)}
 textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px}
-#timeUp{animation:nudge 1.2s ease-in-out infinite}
-@keyframes nudge{50%{transform:scale(1.03)}}
+#timeUp{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(528px,calc(100% - 32px));z-index:5;box-shadow:0 6px 20px rgba(0,0,0,.25);animation:nudge 1.2s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateX(-50%) scale(1.03)}}
+body.timeup .wrap{padding-bottom:96px}
 @media (prefers-reduced-motion:reduce){#timeUp{animation:none}}
 .sum{font-family:var(--f-mono);font-size:13px;white-space:pre-wrap;margin:0;background:var(--bg);border-radius:10px;padding:10px}
 </style>
@@ -91,7 +92,7 @@ textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg
   <!-- Step 1: tone-pair listening quiz -->
   <section class="card" id="s1">
     <h2>① 짝 듣기</h2>
-    <p class="note">소리를 듣고 몇 성인지 골라요. 헷갈리는 두 성조만 골라 집중적으로 들으면 귀가 빨리 트여요. 5분이 지나면 위에 ‘다음 단계로’ 버튼이 떠요.</p>
+    <p class="note">소리를 듣고 몇 성인지 골라요. 헷갈리는 두 성조만 골라 집중적으로 들으면 귀가 빨리 트여요. 5분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
     <div class="chips" id="pairs" aria-label="성조 짝"></div>
     <div class="fb" id="fb"><span class="note">아래 ‘시작’을 누르면 소리가 나와요.</span></div>
     <div class="answers" id="answers"></div>
@@ -268,13 +269,15 @@ function go(s){
   $("timerLbl").textContent=["","① 듣기","② 말하기","③ 단어"][s]||"";
   if(s!==1){clearTimeout(nextT);stopAll()}
   if(s===2||s===3)setupFrame();
-  if(s===4){finish();$("timeUp").hidden=true}
+  if(s===4){finish();$("timeUp").hidden=true;document.body.classList.remove("timeup")}
   renderTimer();window.scrollTo({top:0});
 }
 function renderTimer(){
   if(step>3)return;const sec=day().sec[step-1],m=Math.floor(sec/60),r=sec%60;
   $("timer").textContent=`${m}:${String(r).padStart(2,"0")} / 5:00`;$("timerBar").style.width=Math.min(100,100*sec/STEP_SEC)+"%";
-  const up=sec>=STEP_SEC;$("timeUp").hidden=!up;
+  const up=sec>=STEP_SEC;$("timeUp").hidden=!up;document.body.classList.toggle("timeup",up);
+  // Buzz once when a step first reaches 5 minutes, so it is noticed mid-exercise.
+  if(sec===STEP_SEC)try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}
   if(up){$("timeUp").textContent=step<3?`5분 끝! ${["","② 말하기","③ 단어"][step]}로 넘어가기 →`:"5분 끝! 오늘 루틴 마치기 ✓";document.querySelector(`.step[data-s="${step}"]`).classList.add("done")}
 }
 // Count time only while the page is visible, so leaving the tab open doesn't inflate the log.
