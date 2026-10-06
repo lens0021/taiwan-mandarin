@@ -60,7 +60,7 @@ details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
   <header><a href="../">← 연습 목록</a><h1>가격 듣기</h1><p class="note">가게에서 말하는 가격을 듣고 동전과 지폐로 내요.</p></header>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-mode="p" aria-selected="true">가격 듣기</button>
-    <button class="tab" role="tab" data-mode="c" aria-selected="false">거스름돈</button>
+    <button class="tab" role="tab" data-mode="c" aria-selected="false">거스름돈 확인</button>
   </div>
 
   <section class="card" id="startCard">
@@ -73,12 +73,22 @@ details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
     <div class="top"><span id="lvTxt"></span><span id="prog"></span></div>
     <div id="paidBox" hidden><p class="lbl">내가 낸 돈</p><div class="money" id="paid"></div></div>
     <button class="btn" id="play">▶ 다시 듣기</button>
-    <p class="lbl" id="trayLbl">낼 돈 (누르면 빠져요)</p>
+    <div id="payBox" style="display:flex;flex-direction:column;gap:12px">
+    <p class="lbl">낼 돈 (누르면 빠져요)</p>
     <div class="tray money" id="tray" data-empty="아래 돈을 눌러 담으세요"></div>
     <div class="money" id="wallet"></div>
     <div class="row">
       <button class="btn" id="clear">비우기</button>
       <button class="btn main" id="check">내기</button>
+    </div>
+    </div>
+    <div id="judgeBox" hidden style="display:flex;flex-direction:column;gap:12px">
+    <p class="lbl">사장님이 거슬러 준 돈</p>
+    <div class="tray money" id="given"></div>
+    <div class="row" style="grid-template-columns:1fr 1fr">
+      <button class="btn main" id="yes">맞아요</button>
+      <button class="btn" id="no">틀렸어요</button>
+    </div>
     </div>
     <p class="res" id="res" hidden></p>
     <button class="ans" id="ans" hidden title="눌러서 다시 듣기"><span class="han" id="ansHan"></span><span class="zy" id="ansZy"></span><span class="note" id="ansNote"></span><span class="money" id="ansMoney"></span></button>
@@ -221,18 +231,22 @@ function newQ(){
   const paid=S.mode==="c"?(n<100?100:n<500?500:1000):0;
   q={n,paid,mode:S.mode,replays:0};answered=false;
   $("paidBox").hidden=!paid;$("paid").innerHTML="";if(paid)$("paid").append(money(paid));
-  $("trayLbl").textContent=paid?"받을 거스름돈 (누르면 빠져요)":"낼 돈 (누르면 빠져요)";
-  $("check").textContent=paid?"이만큼 받기":"내기";
+  // Change mode, customer side: you paid, the shopkeeper hands back change, sometimes wrong.
+  if(paid){const c=paid-n;let g=c;
+    if(Math.random()<.45){const d=[5,10,50,100];do{g=c+(Math.random()<.5?-1:1)*d[Math.floor(Math.random()*d.length)]}while(g<=0||g>=paid||g===c)}
+    q.given=g;$("given").innerHTML="";fewest(g).forEach(x=>$("given").append(money(x)))}
+  $("payBox").hidden=!!paid;$("judgeBox").hidden=!paid;$("yes").disabled=$("no").disabled=false;
   tray=[];drawTray();
   $("res").hidden=$("ans").hidden=$("next").hidden=true;$("check").hidden=$("clear").hidden=false;
   say(n);
 }
-function check(){
+function check(judge){
   if(answered){newQ();return}
-  if(!tray.length)return;
-  const v=tray.reduce((a,b)=>a+b,0),want=q.mode==="c"?q.paid-q.n:q.n,ok=v===want;answered=true;drawTray();
+  const c=q.mode==="c";if(!c&&!tray.length)return;
+  const v=c?q.given:tray.reduce((a,b)=>a+b,0),want=c?q.paid-q.n:q.n,ok=c?judge===(v===want):v===want;answered=true;drawTray();
+  $("yes").disabled=$("no").disabled=true;
   if(!ok&&!miss.includes(q.n))miss.push(q.n);
-  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
+  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,j:c?(judge?1:0):undefined,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
   if(S.log.length>2000)S.log=S.log.slice(-2000);
   done++;if(ok)right++;
   const msg=adjustLevel();save();
@@ -242,10 +256,11 @@ function check(){
   $("item").append("이 정도 가격: ",b," "+it[1]+" "+it[2]+" 약 "+it[3]+"元");
   $("res").hidden=false;$("res").className="res "+(ok?"ok":"no");
   // Digits appear only now, after the answer.
-  $("res").textContent=ok?"정답! "+want+"元":"아쉬워요. 담은 돈 "+v+"元, 정답 "+want+"元";
+  $("res").textContent=c?(ok?"정답! ":"아쉬워요. ")+(v===want?"사장님이 "+v+"元을 맞게 줬어요.":"사장님이 "+v+"元을 줬는데, 받을 돈은 "+want+"元이에요.")
+    :ok?"정답! "+want+"元":"아쉬워요. 담은 돈 "+v+"元, 정답 "+want+"元";
   const s=zh(q.n);$("ansHan").textContent=s;$("ansZy").textContent=zhuyin(s);
   $("ansNote").textContent=q.mode==="c"?"가격 "+q.n+"元 · 거스름돈 "+q.paid+" − "+q.n+" = "+(q.paid-q.n)+"元 · 눌러서 다시 듣기":q.n+"元 · 눌러서 다시 듣기";
-  $("ansMoney").innerHTML="";if(!ok)fewest(want).forEach(x=>$("ansMoney").append(money(x)));
+  $("ansMoney").innerHTML="";if(c?v!==want:!ok)fewest(want).forEach(x=>$("ansMoney").append(money(x)));
   $("ans").hidden=false;$("check").hidden=$("clear").hidden=true;$("next").hidden=false;$("next").focus();
   $("next").textContent=done>=SESSION?"결과 보기 ▶":"다음 ▶";
   showStats();
@@ -258,7 +273,7 @@ function finish(){
 $("start").onclick=startSession;$("again").onclick=startSession;
 $("play").onclick=()=>{if(q){q.replays++;say(q.n)}};
 $("ans").onclick=()=>q&&say(q.n);
-$("check").onclick=check;$("next").onclick=newQ;
+$("check").onclick=()=>check();$("yes").onclick=()=>check(true);$("no").onclick=()=>check(false);$("next").onclick=newQ;
 
 function showStats(){
   const t=S.log.filter(x=>x.d===today()),ok=t.filter(x=>x.ok).length;
@@ -278,7 +293,7 @@ function summary(){
   R.forEach(x=>{(K[kind(x.n)]=K[kind(x.n)]||[]).push(x)});
   ["1~10","11~99","100~199","몇백(x00)","零 들어감(x0y)","세 자리"].forEach(k=>K[k]&&lines.push("- "+k+": "+pct(K[k])));
   const wrong=L.filter(x=>!x.ok).slice(-12);
-  if(wrong.length)lines.push("최근 틀린 것: "+wrong.map(x=>x.m==="c"?x.n+"元(낸 돈 "+x.p+", 거스름돈 "+(x.p-x.n)+") → "+x.a:x.n+" → "+x.a).join(", "));
+  if(wrong.length)lines.push("최근 틀린 것: "+wrong.map(x=>x.m==="c"?x.n+"元(낸 돈 "+x.p+", 받은 돈 "+x.a+", 맞는 거스름돈 "+(x.p-x.n)+", 판단 "+(x.j?"맞아요":"틀렸어요")+")":x.n+" → "+x.a).join(", "));
   const rep=t.filter(x=>x.r).length;if(t.length)lines.push("오늘 다시 듣기 쓴 문제: "+rep+"/"+t.length);
   return lines.join("\n");
 }
