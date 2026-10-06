@@ -107,7 +107,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:500}
       <button class="btn" id="play">▶ 듣기</button>
       <button class="btn rec" id="rec">● 녹음</button>
     </div>
-    <label class="range" for="matchPitch" id="matchLbl" hidden><input type="checkbox" id="matchPitch" checked style="accent-color:var(--jade)"> 듣기 음성을 내 1성 높이에 맞추기</label>
+    <label class="range" for="matchPitch" id="matchLbl" hidden><input type="checkbox" id="matchPitch" style="accent-color:var(--jade)"> 듣기 음성을 내 1성 높이로 낮추기 (음색이 어색해질 수 있어요)</label>
     <label class="file" id="fileLbl">🎙 마이크가 안 되면: 휴대폰 녹음기로 녹음해서 올리기
       <input type="file" id="file" accept="audio/*" capture="user">
     </label>
@@ -143,7 +143,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:500}
     <details>
       <summary>네 가지 성조 모양 (대만식)</summary>
       <div class="shapes" id="shapes"></div>
-      <p>'내 1성 높이'를 정하면 듣기 음성도 그 높이로 낮추거나 올려서 들려줘요. 목소리 결이 조금 달라질 수 있어요. 듣기 음성은 표준 중국어 음성이라 대만 억양과 조금 달라요. 대만 사람들은 3성을 낮게 깔고 끝을 거의 올리지 않는 경우가 많아요. 그래서 여기서는 낮게만 내도 3성으로 인정해요. 3성이 두 번 이어지면 앞의 것은 2성처럼 읽어요.</p>
+      <p>예시와 내 목소리의 높이가 달라도 괜찮아요. 그래프는 각자의 1성 높이를 기준으로 그려서 모양만 비교하면 돼요. 듣기 음성은 표준 중국어 음성이라 대만 억양과 조금 달라요. 대만 사람들은 3성을 낮게 깔고 끝을 거의 올리지 않는 경우가 많아요. 그래서 여기서는 낮게만 내도 3성으로 인정해요. 3성이 두 번 이어지면 앞의 것은 2성처럼 읽어요.</p>
     </details>
   </section>
 </div>
@@ -503,6 +503,8 @@ async function playSample(it){
   playSrc=playCtx.createBufferSource();playSrc.buffer=buf;playSrc.playbackRate.value=r;playSrc.connect(playCtx.destination);playSrc.start();
   return ab;
 }
+$("matchPitch").checked=store.get("tm-match",false);
+$("matchPitch").onchange=e=>store.set("tm-match",e.target.checked);
 $("play").onclick=async()=>{
   const it=cur;if(!AUDIO[it.h])return;
   let ab;try{ab=await playSample(it)}catch(e){showMsg("소리를 재생하지 못했어요. 컴퓨터 소리 설정을 확인해 보세요.");return}
