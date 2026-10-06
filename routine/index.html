@@ -190,13 +190,19 @@ async function clip(v,h){
   const t=await tone(),bin=atob(t.voices[v].audio[h]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
   ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();return decoded[k]=await ctx.decodeAudioData(u8.buffer);
 }
-async function play(v,h,when){
-  const ab=await clip(v,h);if(ctx.state==="suspended")await ctx.resume();
-  if(src&&!when)try{src.stop()}catch(e){}
-  const s=ctx.createBufferSource();s.buffer=ab;s.connect(ctx.destination);s.start(ctx.currentTime+(when||0));if(!when)src=s;return ab.duration;
+// Every play request cancels whatever is playing or still decoding, so only the latest request is ever heard.
+let playGen=0,playing=[];
+function stopAll(){playGen++;playing.forEach(s=>{try{s.stop()}catch(e){}});playing=[]}
+async function play(v,...hs){
+  stopAll();const g=playGen,abs=[];
+  for(const h of hs)abs.push(await clip(v,h));
+  if(ctx.state==="suspended")await ctx.resume();
+  if(g!==playGen)return;
+  let at=ctx.currentTime+0.05;
+  abs.forEach(ab=>{const s=ctx.createBufferSource();s.buffer=ab;s.connect(ctx.destination);s.start(at);at+=ab.duration+0.6;playing.push(s)});
 }
 async function ask(){
-  clearTimeout(nextT);
+  clearTimeout(nextT);stopAll();
   const t=await tone();if(!t){$("fb").innerHTML='<span class="no-t">소리를 불러오지 못했어요. 새로고침해 보세요.</span>';return}
   const p=pairOf(pairKey),pool=t.singles.filter(s=>p.includes(s.t[0])&&s.h!==lastH);
   // Pick the tone first so each tone comes up equally often, then a syllable and a voice at random.
@@ -215,11 +221,11 @@ function answer(t,btn){
   $("answers").querySelectorAll(".ans").forEach(b=>{b.disabled=true;if(+b.dataset.t===truth)b.classList.add("ok");else if(b===btn)b.classList.add("no")});
   $("fb").innerHTML=`<span class="${ok?"ok-t":"no-t"}">${ok?"맞아요":"아쉬워요, "+NAME[truth]+"이에요"}</span><span class="han">${q.it.h}</span><span class="py">${q.it.py} · ${q.it.zy} · ${q.it.m}</span>`;
   if(ok){nextT=setTimeout(ask,1300);return}
-  // On a miss, play the heard clip and then one of the confused tone, so the contrast is heard back to back.
+  // On a miss, offer the heard clip next to one of the confused tone, so the contrast is heard back to back.
   const base=py=>py.normalize("NFD").replace(/[\u0300-\u036f]/g,""),cands=T.singles.filter(s=>s.t[0]===t),t2=t;
   const other=cands.find(s=>base(s.py)===base(q.it.py))||cands[Math.floor(Math.random()*cands.length)];
-  $("fb").insertAdjacentHTML("beforeend",`<span class="note">${other?`비교: ${q.it.h}(${NAME[truth]}) → ${other.h}(${NAME[t2]}) `:""}다음 문제는 ‘다음 문제’를 누르세요.</span>`);
-  (async()=>{try{const d1=await play(q.v,q.it.h);if(other)await play(q.v,other.h,d1+0.5)}catch(e){}})();
+  if(other){const cur=q;$("fb").insertAdjacentHTML("beforeend",`<button class="chip" id="cmp" style="margin-top:6px">▶ 비교 듣기: ${cur.it.h}(${NAME[truth]}) 다음에 ${other.h}(${NAME[t2]})</button>`);
+    $("cmp").onclick=()=>{if(q===cur)play(cur.v,cur.it.h,other.h).catch(()=>{})}}
   $("startQ").textContent="다음 문제";
 }
 function renderScore(){
@@ -228,6 +234,7 @@ function renderScore(){
 }
 $("startQ").onclick=()=>{$("startQ").textContent="다음 문제";ask()};
 $("again").onclick=()=>{if(q)play(q.v,q.it.h).catch(()=>{})};
+document.addEventListener("visibilitychange",()=>{if(document.hidden)stopAll()});
 
 /* ---------- steps 2 and 3 drive the embedded 성조 거울 ---------- */
 let step=1;
@@ -251,7 +258,7 @@ function go(s){
   $("done").hidden=s!==4;$("timerRow").hidden=s===4;$("nav").hidden=s===4;
   $("prev").disabled=s===1;$("next").textContent=s===3?"오늘 루틴 마치기 ✓":"다음 단계 →";
   $("timerLbl").textContent=["","① 듣기","② 말하기","③ 단어"][s]||"";
-  if(s!==1)clearTimeout(nextT);
+  if(s!==1){clearTimeout(nextT);stopAll()}
   if(s===2||s===3)setupFrame();
   if(s===4)finish();
   renderTimer();window.scrollTo({top:0});
