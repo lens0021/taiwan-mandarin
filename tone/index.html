@@ -264,7 +264,6 @@ function draw(segs,results,live){
   cur.t.forEach((t,k)=>{
     const x0=L+k*(sw+gap);
     let tp=TEMPL[t][0];
-    if(results&&results[k]&&t===3&&results[k].tv)tp=results[k].tv;
     const pts=resample(tp,30);
     c.strokeStyle=col("--jade-soft");c.lineWidth=16;c.lineCap="round";c.lineJoin="round";c.beginPath();
     pts.forEach((v,i)=>{const x=x0+8+i*(sw-16)/29;i?c.lineTo(x,y(v)):c.moveTo(x,y(v))});c.stroke();
@@ -351,7 +350,7 @@ function classify(c){
       let sh=0;for(let i=0;i<20;i++){const q=(u[i]-mu)-k*(p[i]-mp);sh+=q*q}sh=Math.sqrt(sh/20);
       const d=sh+LEVEL_W*Math.abs(mu-mp);if(d<bd){bd=d;btv=tv}}
     ranks.push({t,d:bd,tv:btv})}
-  ranks.sort((a,b)=>a.d-b.d);best=ranks[0];best.margin=ranks[1].d-ranks[0].d;return best;
+  ranks.sort((a,b)=>a.d-b.d);best=ranks[0];best.margin=ranks[1].d-ranks[0].d;best.ranks=ranks;return best;
 }
 
 /* ---------- analysis & result ---------- */
@@ -373,9 +372,11 @@ function analyzeShow(segsSt,count){
   const res=segs.map(classify);
   draw(segs,res);
   let html="";
-  res.forEach((r,k)=>{const tgt=cur.t[k],ok=r.t===tgt,conf=r.margin>0.35?"":" (애매함)";
+  const oks=res.map((r,k)=>accept(r,cur.t[k],segs[k]));
+  res.forEach((r,k)=>{const tgt=cur.t[k],ok=oks[k],conf=r.margin>0.35?"":" (애매함)";
     const ch=cur.h.length>1?`<b style="font-family:var(--f-han)">${[...cur.h][k]}</b> `:"";
-    html+=`<div class="res">${ch}<span class="pill ${ok?"ok":"no"}">${ok?"맞음":"다름"}</span> ${r.t}성처럼 들려요${conf} · 목표 ${tgt}성</div>`;
+    const what=r.t===tgt?`${r.t}성처럼 들려요${conf}`:ok?`${tgt}성으로 인정해요 (${r.t}성 느낌도 조금 있어요)`:`${r.t}성처럼 들려요${conf}`;
+    html+=`<div class="res">${ch}<span class="pill ${ok?"ok":"no"}">${ok?"맞음":"다름"}</span> ${what} · 목표 ${tgt}성</div>`;
     if(!ok)html+=`<div class="hint">${HINT[tgt]}</div>`;
     if(count){stats[tgt][1]++;if(ok)stats[tgt][0]++;
       const key=cur.h+(cur.h.length>1?"#"+(k+1):""),it=stats.items[key]||(stats.items[key]=[0,0,""]);it[1]++;if(ok)it[0]++;else it[2]=tgt+">"+r.t}});
@@ -383,10 +384,22 @@ function analyzeShow(segsSt,count){
   html+='<div class="hint" style="font-size:12px">음높이만 보고 내린 대략적인 판정이에요. 그래프 모양이 목표 띠를 따라가는지 같이 보세요.</div>';
   $("result").innerHTML=html;
   if(count){store.set("tm-stats",stats);renderStats();
-    if(res.every((r,k)=>r.t===cur.t[k])&&$("autoNext").checked){
+    if(oks.every(Boolean)&&$("autoNext").checked){
       const list=mode===1?SINGLES:PAIRS,it=cur,next=list[(list.indexOf(cur)+1)%list.length];
       $("result").insertAdjacentHTML("beforeend",`<div class="hint">잘했어요! 곧 다음 단어 <b style="font-family:var(--f-han)">${next.h}</b>(으)로 넘어가요.</div>`);
       clearTimeout(nextTimer);nextTimer=setTimeout(()=>{if(cur===it&&!rec){selectItem(next);$("play").click()}},2000)}}
+}
+// Accept a near miss: the target fits almost as well as the winner, or the contour plainly has the target's
+// defining move (a clear rise to a high end for 2, staying low for 3, a big fall from high for 4, high and level for 1).
+function accept(r,tgt,c){
+  if(r.t===tgt)return true;
+  const td=r.ranks.find(x=>x.t===tgt).d;if(td-r.d<0.25)return true;
+  const u=resample(c,20),mn=Math.min(...u),mx=Math.max(...u),im=u.indexOf(mn),mean=u.reduce((a,b)=>a+b)/20,end=(u[18]+u[19])/2,start=(u[0]+u[1])/2;
+  if(tgt===2)return end-mn>=1&&end>=3.6&&im<15;
+  if(tgt===3)return mean<=2.6&&Math.max(...u.slice(14))<=3.4;
+  if(tgt===4)return start-end>=1.2&&start>=3.5;
+  if(tgt===1)return mx-mn<=0.9&&mean>=3.6;
+  return false;
 }
 function showMsg(m){$("result").innerHTML=`<span class="hint">${m}</span>`;draw()}
 
