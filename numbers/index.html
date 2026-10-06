@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f8a70">
+<title>가격 듣기</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-192.png">
+<style>
+:root{--bg:#eef2f1;--surface:#fff;--ink:#15302f;--muted:#5d7472;--line:#cfdcda;--jade:#1f8a70;--coral:#e0533d;--good:#1f8a70;--bad:#c2410c;
+  --f-han:"Noto Serif TC","Songti TC",serif;--f-mono:ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1918;--surface:#172423;--ink:#e3eeec;--muted:#93aba8;--line:#2a3b39;--jade:#4cc3a0;--coral:#ff7a63;--good:#4cc3a0;--bad:#ff9a5c;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Noto Sans KR",sans-serif;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+main{max-width:560px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header a{color:var(--muted);font-size:13px;text-decoration:none}
+h1{margin:2px 0 0;font-size:22px}
+p{margin:0}.note{font-size:13px;color:var(--muted)}
+.tabs,.chips{display:flex;gap:6px}
+.tab{flex:1;padding:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--jade);box-shadow:inset 0 0 0 1px var(--jade);color:var(--jade)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.paid{font-size:15px}.paid b{font-size:22px;color:var(--jade)}
+.btn{padding:13px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.btn.main{background:var(--jade);border-color:var(--jade);color:#fff}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px}
+input[type=text]{width:100%;box-sizing:border-box;padding:12px;font:600 24px var(--f-mono);border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+.res{font-weight:700}.res.ok{color:var(--good)}.res.no{color:var(--bad)}
+.ans{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--bg);cursor:pointer;border:0;color:inherit;font:inherit;text-align:left}
+.ans .han{font-family:var(--f-han);font-size:30px;font-weight:700}
+.ans .zy{font-size:17px;letter-spacing:.05em}
+.stats{font-size:13px;color:var(--muted)}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font:12px var(--f-mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
+.btn:focus-visible,.chip:focus-visible,.tab:focus-visible,.ans:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+</style>
+<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{}))</script>
+</head>
+<body>
+<main>
+  <header><a href="../">← 연습 목록</a><h1>가격 듣기</h1><p class="note">가게에서 말하는 가격을 듣고 숫자로 입력해요.</p></header>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-mode="p" aria-selected="true">가격 듣기</button>
+    <button class="tab" role="tab" data-mode="c" aria-selected="false">거스름돈</button>
+  </div>
+  <div class="chips" id="ranges">
+    <button class="chip" data-r="1-99">1~99</button>
+    <button class="chip" data-r="100-999">100~999</button>
+    <button class="chip" data-r="1-999">1~999</button>
+  </div>
+
+  <section class="card" id="startCard">
+    <p>소리가 바로 나와요. 들은 가격을 숫자로 입력하세요.</p>
+    <button class="btn main" id="start">시작</button>
+  </section>
+
+  <section class="card" id="quiz" hidden>
+    <p class="paid" id="paid" hidden></p>
+    <button class="btn" id="play">▶ 다시 듣기</button>
+    <div class="row">
+      <input type="text" id="inp" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="숫자 입력">
+      <button class="btn main" id="check">확인</button>
+    </div>
+    <p class="res" id="res" hidden></p>
+    <button class="ans" id="ans" hidden title="눌러서 다시 듣기"><span class="han" id="ansHan"></span><span class="zy" id="ansZy"></span><span class="note" id="ansNote"></span></button>
+    <button class="btn main" id="next" hidden>다음 ▶</button>
+    <p class="stats" id="stats"></p>
+  </section>
+
+  <section class="card">
+    <button class="btn" id="copy">기록 복사</button>
+    <p class="note" id="copyMsg" hidden></p>
+    <textarea id="copyBox" readonly hidden></textarea>
+    <details>
+      <summary>숫자 읽는 규칙</summary>
+      <p>2는 혼자 쓰이거나 百 앞에서 兩(ㄌㄧㄤˇ)으로 말해요: 兩塊(2), 兩百(200). 끝자리 2는 二(ㄦˋ)예요: 十二塊(12).</p>
+      <p>가운데 자리가 0이면 零(ㄌㄧㄥˊ)을 넣어요: 一百零五塊(105).</p>
+      <p>100~199의 십 자리 1은 一十로 말해요: 一百一十五塊(115). 10~19는 그냥 十로 시작해요: 十五塊(15).</p>
+      <p>塊(ㄎㄨㄞˋ)는 말로 하는 '원'이에요. 가격표에는 元으로 적혀 있어요.</p>
+      <p>음성은 Amazon Polly의 표준 중국어 음성이라 대만 억양과 조금 달라요.</p>
+    </details>
+  </section>
+</main>
+<script src="clips.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+
+/* ---------- number -> spoken Chinese and Zhuyin ---------- */
+const D="零一二三四五六七八九";
+function zh(n){
+  if(n===2)return "兩塊";
+  const h=Math.floor(n/100),t=Math.floor(n/10)%10,o=n%10;let s="";
+  if(h)s+=(h===2?"兩":D[h])+"百";
+  if(t)s+=(!h&&t===1?"":D[t])+"十";else if(h&&o)s+="零";
+  if(o)s+=D[o];
+  return s+"塊";
+}
+const ZY={"零":"ㄌㄧㄥˊ","一":"ㄧ","二":"ㄦˋ","兩":"ㄌㄧㄤˇ","三":"ㄙㄢ","四":"ㄙˋ","五":"ㄨˇ","六":"ㄌㄧㄡˋ","七":"ㄑㄧ","八":"ㄅㄚ","九":"ㄐㄧㄡˇ","十":"ㄕˊ","百":"ㄅㄞˇ","塊":"ㄎㄨㄞˋ"};
+function zhuyin(s){
+  // 一 changes tone: 一百 -> ㄧˋ, 一塊 (1 alone) -> ㄧˊ; inside a number it stays ㄧ.
+  return [...s].map((c,i)=>c==="一"&&s[i+1]==="百"?"ㄧˋ":c==="一"&&i===0&&s[i+1]==="塊"?"ㄧˊ":ZY[c]).join(" ");
+}
+function kind(n){
+  if(n<=10)return "1~10";
+  if(n<100)return "11~99";
+  if(n%100===0)return "몇백(x00)";
+  if(Math.floor(n/10)%10===0)return "零 들어감(x0y)";
+  if(Math.floor(n/100)===1)return "100~199";
+  return "세 자리";
+}
+
+/* ---------- audio: one sprite per hundred, decoded on demand ---------- */
+let ctx=null;const sprites={};
+function sprite(i){
+  return sprites[i]||(sprites[i]=fetch("audio/"+i+".mp3").then(r=>r.arrayBuffer()).then(b=>ctx.decodeAudioData(b)).catch(e=>{delete sprites[i];throw e}));
+}
+let playing=null;
+async function say(n){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+  if(ctx.state==="suspended")ctx.resume();
+  const c=NUM_CLIPS[n];if(!c)return;
+  try{
+    const buf=await sprite(c[0]);
+    if(playing)try{playing.stop()}catch(e){}
+    const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start(0,c[1],c[2]);playing=src;
+  }catch(e){$("res").hidden=false;$("res").className="res no";$("res").textContent="음성을 불러오지 못했어요. 인터넷 연결을 확인해 주세요."}
+}
+
+/* ---------- state ---------- */
+let S=store.get("tm-numbers",{mode:"p",range:"1-999",log:[]});
+let q=null,answered=false,miss=[],count=0;
+const save=()=>store.set("tm-numbers",S);
+
+function setMode(m){S.mode=m;save();document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.mode===m));if(!$("quiz").hidden)newQ()}
+function setRange(r){S.range=r;save();miss=[];document.querySelectorAll("#ranges .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.r===r));if(!$("quiz").hidden)newQ()}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.querySelectorAll("#ranges .chip").forEach(b=>b.onclick=()=>setRange(b.dataset.r));
+
+function pick(){
+  const [lo,hi]=S.range.split("-").map(Number);
+  // Missed prices come back every third question.
+  count++;
+  if(miss.length&&count%3===0)return miss.shift();
+  let n;do{n=lo+Math.floor(Math.random()*(hi-lo+1))}while(q&&n===q.n&&hi>lo);
+  return n;
+}
+function newQ(){
+  const n=pick();
+  // In change mode you hand over the smallest bill that covers the price.
+  const paid=S.mode==="c"?(n<100?100:n<500?500:1000):0;
+  q={n,paid,mode:S.mode,replays:0};answered=false;
+  $("paid").hidden=!paid;$("paid").innerHTML=paid?"내가 낸 돈 <b>"+paid+"元</b> · 거스름돈은?":"";
+  $("inp").value="";$("inp").placeholder=paid?"거스름돈":"가격";
+  $("res").hidden=$("ans").hidden=$("next").hidden=true;$("check").hidden=false;
+  $("inp").focus();say(n);
+}
+function check(){
+  if(answered){newQ();return}
+  const v=$("inp").value.replace(/\D/g,"");if(!v)return;
+  const want=q.mode==="c"?q.paid-q.n:q.n,ok=+v===want;answered=true;
+  if(!ok&&!miss.includes(q.n))miss.push(q.n);
+  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,ok:ok?1:0,r:q.replays||undefined});
+  if(S.log.length>2000)S.log=S.log.slice(-2000);save();
+  $("res").hidden=false;$("res").className="res "+(ok?"ok":"no");
+  $("res").textContent=ok?"정답!":"아쉬워요. 정답은 "+want+(q.mode==="c"?"元 거스름돈":"元");
+  const s=zh(q.n);$("ansHan").textContent=s;$("ansZy").textContent=zhuyin(s);
+  $("ansNote").textContent=q.mode==="c"?"가격 "+q.n+"元 · "+q.paid+" − "+q.n+" = "+(q.paid-q.n):q.n+"元 · 눌러서 다시 듣기";
+  $("ans").hidden=false;$("check").hidden=true;$("next").hidden=false;$("next").focus();
+  showStats();
+}
+$("start").onclick=()=>{$("startCard").hidden=true;$("quiz").hidden=false;newQ()};
+$("play").onclick=()=>{if(q){q.replays++;say(q.n)}};
+$("ans").onclick=()=>q&&say(q.n);
+$("check").onclick=check;$("next").onclick=newQ;
+$("inp").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();check()}});
+
+function showStats(){
+  const t=S.log.filter(x=>x.d===today()),ok=t.filter(x=>x.ok).length;
+  $("stats").textContent=t.length?"오늘 "+t.length+"문제 · 정답 "+ok+" ("+Math.round(ok/t.length*100)+"%)":"";
+}
+
+/* ---------- 기록 복사 ---------- */
+function summary(){
+  const L=S.log,t=L.filter(x=>x.d===today()),days=new Set(L.map(x=>x.d));
+  const pct=a=>a.length?Math.round(a.filter(x=>x.ok).length/a.length*100)+"% ("+a.filter(x=>x.ok).length+"/"+a.length+")":"-";
+  const lines=["[가격 듣기 기록] "+today(),
+    "오늘: 가격 "+pct(t.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(t.filter(x=>x.m==="c")),
+    "전체: "+L.length+"문제, "+days.size+"일 · 가격 "+pct(L.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(L.filter(x=>x.m==="c")),
+    "유형별(가격 듣기, 최근 300문제):"];
+  const R=L.filter(x=>x.m==="p").slice(-300),K={};
+  R.forEach(x=>{(K[kind(x.n)]=K[kind(x.n)]||[]).push(x)});
+  ["1~10","11~99","100~199","몇백(x00)","零 들어감(x0y)","세 자리"].forEach(k=>K[k]&&lines.push("- "+k+": "+pct(K[k])));
+  const wrong=L.filter(x=>!x.ok).slice(-12);
+  if(wrong.length)lines.push("최근 틀린 것: "+wrong.map(x=>x.m==="c"?x.n+"元(낸 돈 "+x.p+", 거스름돈 "+(x.p-x.n)+") → "+x.a:x.n+" → "+x.a).join(", "));
+  const rep=t.filter(x=>x.r).length;if(t.length)lines.push("오늘 다시 듣기 쓴 문제: "+rep+"/"+t.length);
+  return lines.join("\n");
+}
+$("copy").onclick=async()=>{
+  // Show the text first: on some browsers the clipboard call never settles.
+  const s=summary();$("copyBox").hidden=false;$("copyBox").value=s;
+  $("copyMsg").hidden=false;$("copyMsg").textContent="아래 내용을 길게 눌러 복사해 주세요.";
+  try{await navigator.clipboard.writeText(s);$("copyMsg").textContent="복사했어요. 채팅에 붙여 넣어 주세요."}catch(e){}
+};
+
+setMode(S.mode);setRange(S.range);showStats();
+</script>
+</body>
+</html>
