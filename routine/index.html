@@ -94,7 +94,7 @@ body.timeup .wrap{padding-bottom:96px}
   <!-- Step 1: tone-pair listening quiz -->
   <section class="card" id="s1">
     <h2>① 짝 듣기</h2>
-    <p class="note">소리를 듣고 몇 성인지 골라요. 헷갈리는 두 성조만 골라 집중적으로 들으면 귀가 빨리 트여요. 5분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
+    <p class="note">소리를 듣고 몇 성인지 골라요. ‘자동’이면 최근 2주 기록에서 많이 헷갈린 짝을 골라 8문제씩 내요. 직접 고르고 싶으면 짝을 눌러요. 5분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
     <div class="chips" id="pairs" aria-label="성조 짝"></div>
     <div class="fb" id="fb"><span class="note">아래 ‘시작’을 누르면 소리가 나와요.</span></div>
     <div class="answers" id="answers"></div>
@@ -179,16 +179,33 @@ frame.addEventListener("load",()=>{
 const PAIR_OPTS=[[2,3],[1,4],[1,2],[3,4],[2,4],[1,3],[1,2,3,4]];
 const NAME={1:"1성",2:"2성",3:"3성",4:"4성"},SHAPE={1:"높고 평평",2:"올라감",3:"낮게 깔림",4:"뚝 떨어짐"};
 const PATH={1:"M4 7 L52 7",2:"M4 17 L28 18 L52 4",3:"M4 15 L28 25 L52 23",4:"M4 4 L52 26"};
-let pairKey=store.get("tm-routine-pair","2-3"),q=null,lastH=null,streak=0,ctx=null,src=null,nextT=0;
+let pairKey=store.get("tm-routine-pair2","auto"),q=null,lastH=null,streak=0,ctx=null,src=null,nextT=0;
 const pairOf=k=>k.split("-").map(Number);
+// Auto mode: weight each two-tone pair by how often its tones were mixed up in the last 14 days
+// (either direction, any mode), with 2↔3 as the starting favourite. A pair is kept for 8 questions.
+let autoKey=null,autoLeft=0;
+function autoWeights(){
+  const w={};PAIR_OPTS.filter(p=>p.length===2).forEach(p=>w[p.join("-")]=p.join("-")==="2-3"?3:1);
+  Object.entries(log.days).filter(([k])=>(new Date(today())-new Date(k))/864e5<14).forEach(([,d])=>
+    Object.entries(d.conf||{}).forEach(([k,n])=>{const pk=k.split(">").map(Number).sort().join("-");if(pk in w)w[pk]+=2*n}));
+  return w;
+}
+function pickAuto(){
+  const w=autoWeights(),ks=Object.keys(w);
+  let r=Math.random()*ks.reduce((a,k)=>a+w[k],0);autoKey=ks.find(k=>(r-=w[k])<0)||ks[0];autoLeft=8;
+}
+function topAuto(){const w=autoWeights();return Object.keys(w).sort((a,b)=>w[b]-w[a])[0]}
+const curKey=()=>pairKey==="auto"?(autoKey||topAuto()):pairKey;
 function renderPairs(){
   $("pairs").innerHTML="";
+  const a=document.createElement("button");a.className="chip";a.textContent=pairKey==="auto"&&autoKey?`자동 (${autoKey.replace("-","↔")}성)`:"자동";
+  a.setAttribute("aria-pressed",pairKey==="auto");a.onclick=()=>{pairKey="auto";store.set("tm-routine-pair2","auto");autoKey=null;autoLeft=0;renderPairs();renderAnswers();if(q)ask()};$("pairs").appendChild(a);
   PAIR_OPTS.forEach(p=>{const k=p.join("-"),b=document.createElement("button");b.className="chip";
     b.textContent=p.length===4?"전체":p.join("↔")+"성";b.setAttribute("aria-pressed",k===pairKey);
-    b.onclick=()=>{pairKey=k;store.set("tm-routine-pair",k);renderPairs();renderAnswers();if(q)ask()};$("pairs").appendChild(b)});
+    b.onclick=()=>{pairKey=k;store.set("tm-routine-pair2",k);renderPairs();renderAnswers();if(q)ask()};$("pairs").appendChild(b)});
 }
 function renderAnswers(){
-  const p=pairOf(pairKey);$("answers").style.setProperty("--n",p.length);
+  const p=pairOf(curKey());$("answers").style.setProperty("--n",p.length);
   $("answers").innerHTML=p.map(t=>`<button class="ans" data-t="${t}" ${q?"":"disabled"}><svg viewBox="0 0 56 30"><path d="${PATH[t]}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${NAME[t]}<small>${SHAPE[t]}</small></button>`).join("");
   $("answers").querySelectorAll(".ans").forEach(b=>b.onclick=()=>answer(+b.dataset.t,b));
 }
@@ -215,7 +232,8 @@ async function play(v,...hs){
 async function ask(){
   clearTimeout(nextT);stopAll();
   const t=await tone();if(!t){$("fb").innerHTML='<span class="no-t">소리를 불러오지 못했어요. 새로고침해 보세요.</span>';return}
-  const p=pairOf(pairKey),pool=quiz(t).filter(s=>p.includes(s.t[0])&&s.h!==lastH);
+  if(pairKey==="auto"&&autoLeft--<=0){pickAuto();renderPairs()}
+  const p=pairOf(curKey()),pool=quiz(t).filter(s=>p.includes(s.t[0])&&s.h!==lastH);
   // Pick the tone first so each tone comes up equally often, then a syllable and a voice at random.
   const want=p[Math.floor(Math.random()*p.length)],cand=pool.filter(s=>s.t[0]===want);
   const it=(cand.length?cand:pool)[Math.floor(Math.random()*(cand.length?cand:pool).length)];
@@ -225,7 +243,7 @@ async function ask(){
 }
 function answer(t,btn){
   if(!q||q.answered)return;q.answered=true;
-  const truth=q.it.t[0],ok=t===truth,d=day(),key=pairKey;
+  const truth=q.it.t[0],ok=t===truth,d=day(),key=curKey();
   d.listen[key]=d.listen[key]||{};const c=d.listen[key][truth]=d.listen[key][truth]||[0,0];c[1]++;if(ok)c[0]++;
   if(!ok){const k=truth+">"+t;d.conf[k]=(d.conf[k]||0)+1}
   save();streak=ok?streak+1:0;renderScore();
@@ -253,7 +271,7 @@ function stats(){return store.get("tm-stats",null)}
 function setupFrame(){
   const t=T;if(!t)return;const doc=t.doc;
   const tab=doc.getElementById(step===2?"tab1":"tab2");if(tab&&tab.getAttribute("aria-selected")!=="true")tab.click();
-  const p=pairOf(pairKey),first=step===2?t.singles.find(s=>p.includes(s.t[0])):t.pairs.find(s=>s.h==="你好");
+  const p=pairOf(curKey()),first=step===2?t.singles.find(s=>p.includes(s.t[0])):t.pairs.find(s=>s.h==="你好");
   if(first)[...doc.querySelectorAll("#chips .chip")].find(b=>b.textContent===first.h)?.click();
   if(step===2)$("s2words").textContent=t.singles.filter(s=>p.includes(s.t[0])).map(s=>s.h).join("·")+" 글자";
 }
