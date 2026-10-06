@@ -128,12 +128,13 @@ details summary{cursor:pointer;color:var(--ink);font-weight:500}
   </section>
 
   <section class="card">
-    <div class="range">목소리 높이:
-      <button class="tab" id="vLow" aria-selected="false">낮은 편</button>
-      <button class="tab" id="vHigh" aria-selected="false">높은 편</button>
-      <span id="rangeTxt" style="font-family:var(--f-mono)"></span>
+    <div class="range"><label for="t1In">내 1성 높이:</label>
+      <input id="t1In" placeholder="예: C#3 또는 139" style="width:8.5em;font:inherit;font-family:var(--f-mono);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)">
+      <button class="tab" id="t1Set">적용</button>
+      <button class="tab" id="t1Rec">녹음으로 정하기</button>
     </div>
-    <p class="note">녹음할수록 내 목소리 범위에 자동으로 맞춰져요. 1성이 자꾸 낮게 나오면 범위를 다시 골라 보세요.</p>
+    <p class="note" id="t1Msg">1성을 편하게 높고 평평하게 낼 때의 음 높이예요. 음 이름(C#3)이나 Hz로 적거나, '녹음으로 정하기'를 누르고 "마—" 하고 2초 동안 길게 내 주세요. 정해 두면 판정이 이 높이를 기준으로 해요.</p>
+    <p class="note">판정 범위: <span id="rangeTxt" style="font-family:var(--f-mono)"></span></p>
     <div class="stats" id="stats"></div>
     <button class="btn" id="copy" style="padding:9px">기록 복사</button>
     <p class="note" id="copyMsg" hidden></p>
@@ -169,7 +170,8 @@ const PAIRS=[
  {h:"你好",zy:"ㄋㄧˇ ㄏㄠˇ",py:"nǐ hǎo",m:"안녕하세요",t:[2,3],n:"3성+3성이라 앞의 你는 2성처럼 올려 읽어요."},
  {h:"很好",zy:"ㄏㄣˇ ㄏㄠˇ",py:"hěn hǎo",m:"아주 좋아요",t:[2,3],n:"3성+3성이라 앞의 很은 2성처럼 올려 읽어요."},
  {h:"不要",zy:"ㄅㄨˋ ㄧㄠˋ",py:"bù yào",m:"필요 없어요",t:[2,4],n:"不 뒤에 4성이 오면 不는 2성(bú)으로 읽어요."}];
-const TEMPL={1:[[4.6,4.6]],2:[[2,1.6,2.3,4.2]],3:[[2,1.1,1],[2.2,1.2,1.4,2.6]],4:[[5,1.4]]};
+var LEVEL_W=0.3;
+const TEMPL={1:[[4.6,4.6]],2:[[3,2.6,3.2,4.9]],3:[[2.2,1.4,1.1],[2.3,1.4,1.6,3]],4:[[5,1.6]]};
 const HINT={1:"처음부터 끝까지 높고 평평하게 유지해요.",2:"중간 높이에서 시작해 끝을 쭉 올려요. 한국어로 '응?' 하고 되물을 때처럼요.",3:"목소리를 낮게 깔아요. 대만식은 끝을 거의 올리지 않아도 돼요.",4:"높은 데서 시작해 뚝 떨어뜨려요. '아!' 하고 깨달을 때처럼요."};
 
 const $=id=>document.getElementById(id);
@@ -180,12 +182,21 @@ let stats=store.get("tm-stats",{1:[0,0],2:[0,0],3:[0,0],4:[0,0]});if(!stats.item
 const PRESET={low:[85,175],high:[165,330]};
 const st=f=>12*Math.log2(f/100);
 
+const NOTES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteName(f){const m=Math.round(69+12*Math.log2(f/440));return NOTES[(m%12+12)%12]+(Math.floor(m/12)-1)}
+function parsePitch(t){t=(t||"").trim().replace("♯","#").replace("♭","b");if(!t)return null;
+  if(/^\d+(\.\d+)?\s*(hz)?$/i.test(t)){const f=parseFloat(t);return f>=50&&f<=600?f:null}
+  const m=t.match(/^([A-Ga-g])([#b]?)(\d)$/);if(!m)return null;
+  const pc={c:0,d:2,e:4,f:5,g:7,a:9,b:11}[m[1].toLowerCase()]+(m[2]==="#"?1:m[2]==="b"?-1:0);
+  return 440*2**((12*(+m[3]+1)+pc-69)/12)}
 function range(){
+  // With a known 1st-tone pitch, put it at 4.6 on the 1-5 scale and the floor 9 semitones below.
+  if(prefs.t1)return [st(prefs.t1)-9,st(prefs.t1)+1];
   const p=PRESET[prefs.preset||"low"];let lo=st(p[0]),hi=st(p[1]);const H=prefs.hist,k=H.length;
   if(k){const hlo=Math.min(...H.map(h=>h[0])),hhi=Math.max(...H.map(h=>h[1])),w=Math.min(1,k/3);
     lo=lo*(1-w)+hlo*w;hi=hi*(1-w)+hhi*w}
-  if(hi-lo<7){const c=(hi+lo)/2;lo=c-3.5;hi=c+3.5}
-  return [lo,hi];
+  // Without a known 1st tone, guess it 5 semitones under the top of what we've heard (rising and falling tones overshoot it) and use the same 10-semitone frame.
+  const t1=Math.max(hi-5,lo+7);return [t1-9,t1+1];
 }
 function chao(s){const [lo,hi]=range();return 1+4*(s-lo)/(hi-lo)}
 
@@ -206,11 +217,27 @@ function setMode(m){mode=m;$("tab1").setAttribute("aria-selected",m===1);$("tab2
   cur=(m===1?SINGLES:PAIRS)[0];last=null;sampleSegs=null;renderChips();renderWord()}
 $("tab1").onclick=()=>setMode(1);$("tab2").onclick=()=>setMode(2);
 function renderRange(){
-  $("vLow").setAttribute("aria-selected",(prefs.preset||"low")==="low");$("vHigh").setAttribute("aria-selected",prefs.preset==="high");
+  if(prefs.t1)$("t1In").value=noteName(prefs.t1)+" ("+Math.round(prefs.t1)+"Hz)";
   const [lo,hi]=range();$("rangeTxt").textContent=Math.round(100*2**(lo/12))+"–"+Math.round(100*2**(hi/12))+" Hz";
 }
-$("vLow").onclick=()=>{prefs={preset:"low",hist:[]};store.set("tm-prefs",prefs);renderRange();if(last)analyzeShow(last)};
-$("vHigh").onclick=()=>{prefs={preset:"high",hist:[]};store.set("tm-prefs",prefs);renderRange();if(last)analyzeShow(last)};
+function setT1(f,how){prefs.t1=f;store.set("tm-prefs",prefs);renderRange();if(last)analyzeShow(last);
+  $("t1Msg").textContent=`1성 높이를 ${noteName(f)} (${Math.round(f)} Hz)로 정했어요${how||""}. 이제 이 높이를 1성으로, 9반음 아래를 가장 낮은 소리로 보고 판정해요.`}
+$("t1Set").onclick=()=>{const v=$("t1In").value.replace(/\(.*\)/,"");const f=parsePitch(v);
+  if(!f){$("t1Msg").textContent="음 이름(예: C#3, Bb2)이나 50~600 사이의 Hz 숫자로 적어 주세요.";return}setT1(f)};
+$("t1In").onkeydown=e=>{if(e.key==="Enter")$("t1Set").click()};
+$("t1Rec").onclick=async()=>{
+  if(rec)stopRec();if(mt)stopTest();
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia(micConstraints())}catch(e){$("t1Msg").textContent=micErr(e);return}
+  const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaStreamSource(stream),sp=ac.createScriptProcessor(2048,1,1),ch=[];
+  sp.onaudioprocess=e=>ch.push(new Float32Array(e.inputBuffer.getChannelData(0)));src.connect(sp);sp.connect(ac.destination);
+  $("t1Rec").disabled=true;$("t1Msg").textContent="지금 \"마—\" 하고 1성처럼 높고 평평하게 2초 동안 내 주세요…";
+  await new Promise(r=>setTimeout(r,2500));sp.disconnect();src.disconnect();stream.getTracks().forEach(t=>t.stop());
+  const n=ch.reduce((a,c)=>a+c.length,0),buf=new Float32Array(n);let o=0;ch.forEach(c=>{buf.set(c,o);o+=c.length});const sr=ac.sampleRate;ac.close();
+  $("t1Rec").disabled=false;
+  const tr=pitchTrack(buf,sr),v=tr?tr.f0.filter(f=>f>0).sort((a,b)=>a-b):[];
+  if(v.length<20){$("t1Msg").textContent="목소리를 충분히 듣지 못했어요. 조금 더 크게, 2초 동안 끊지 말고 내 주세요.";return}
+  setT1(v[Math.floor(v.length/2)]," (녹음)");
+};
 function renderStats(){
   $("stats").innerHTML=[1,2,3,4].map(t=>{const [ok,n]=stats[t];const pct=n?Math.round(100*ok/n):0;
     return `<div class="stat">${t}성 <b>${ok}/${n}</b><div class="bar"><span style="width:${pct}%"></span></div></div>`}).join("");
@@ -310,12 +337,15 @@ function segment(tr,n){
     const d=classify(s1.map(chao)).d+classify(s2.map(chao)).d;if(!best||d<best.d)best={d,segs:[s1,s2]}}
   return best?best.segs:null;
 }
+// Compare shape (allowing a moving tone to be 0.55-1.3x as steep, as in fast speech) plus a lighter penalty for overall level.
 function classify(c){
   const u=resample(c,20),mu=u.reduce((a,b)=>a+b)/20;let best=null,ranks=[];
   for(const t of [1,2,3,4]){let bd=1e9,btv=null;
     for(const tv of TEMPL[t]){const p=resample(tv,20),mp=p.reduce((a,b)=>a+b)/20;
-      let sh=0;for(let i=0;i<20;i++){const q=(u[i]-mu)-(p[i]-mp);sh+=q*q}sh=Math.sqrt(sh/20);
-      const d=sh+0.45*Math.abs(mu-mp);if(d<bd){bd=d;btv=tv}}
+      let num=0,den=0;for(let i=0;i<20;i++){num+=(u[i]-mu)*(p[i]-mp);den+=(p[i]-mp)**2}
+      const k=den>0.05?Math.min(1.3,Math.max(0.55,num/den)):1;
+      let sh=0;for(let i=0;i<20;i++){const q=(u[i]-mu)-k*(p[i]-mp);sh+=q*q}sh=Math.sqrt(sh/20);
+      const d=sh+LEVEL_W*Math.abs(mu-mp);if(d<bd){bd=d;btv=tv}}
     ranks.push({t,d:bd,tv:btv})}
   ranks.sort((a,b)=>a.d-b.d);best=ranks[0];best.margin=ranks[1].d-ranks[0].d;return best;
 }
@@ -345,6 +375,7 @@ function analyzeShow(segsSt,count){
     if(!ok)html+=`<div class="hint">${HINT[tgt]}</div>`;
     if(count){stats[tgt][1]++;if(ok)stats[tgt][0]++;
       const key=cur.h+(cur.h.length>1?"#"+(k+1):""),it=stats.items[key]||(stats.items[key]=[0,0,""]);it[1]++;if(ok)it[0]++;else it[2]=tgt+">"+r.t}});
+  if(!prefs.t1)html+='<div class="hint" style="color:var(--bad)">아래 \'내 1성 높이\'를 정해 두면 판정이 더 정확해져요.</div>';
   html+='<div class="hint" style="font-size:12px">음높이만 보고 내린 대략적인 판정이에요. 그래프 모양이 목표 띠를 따라가는지 같이 보세요.</div>';
   $("result").innerHTML=html;
   if(count){store.set("tm-stats",stats);renderStats()}
@@ -393,7 +424,7 @@ async function startTest(){
     const g=mt.vad.update(r,(performance.now()-mt.t0)/1000),pct=d=>Math.max(0,Math.min(100,(d+70)/70*100));
     $("mtLvl").style.width=pct(g.db)+"%";$("mtThr").style.left=pct(g.thr)+"%";$("mtDb").textContent=Math.round(g.db)+" dB";
     if(g.on){const [x,fs]=downsample(buf,ac.sampleRate),tmin=Math.floor(fs/450),tmax=Math.ceil(fs/65),W=Math.round(fs*0.025),tau=yin(x,0,W,tmin,tmax);
-      $("mtHz").textContent=tau?Math.round(fs/tau)+" Hz":"–";
+      $("mtHz").textContent=tau?Math.round(fs/tau)+" Hz · "+noteName(fs/tau):"–";
       if(tau&&!heard){heard=true;$("mtMsg").textContent="잘 들려요. 이 마이크로 녹음하면 돼요. '3초 녹음 후 듣기'로 내 목소리도 확인해 보세요."}}else $("mtHz").textContent="–";
     if(!heard&&performance.now()-mt.t0>5000)$("mtMsg").textContent="소리가 거의 안 들어와요. 다른 마이크를 고르거나, 윈도우 소리 설정에서 마이크 볼륨과 음소거를 확인하세요.";
     mt.raf=requestAnimationFrame(tick)};
