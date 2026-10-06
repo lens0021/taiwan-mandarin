@@ -57,6 +57,8 @@ a{color:var(--jade)}
 .ans.no{border-color:var(--bad)}
 .fb{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
 .fb .han{font-family:var(--f-han);font-size:34px;font-weight:700;line-height:1.1}
+.zy{white-space:nowrap;letter-spacing:.04em}
+.fb .zy-big{font-size:20px;letter-spacing:.06em}
 .fb .py{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
 .ok-t{color:var(--good);font-weight:700}.no-t{color:var(--bad);font-weight:700}
 .score{display:flex;gap:14px;font-size:13px;color:var(--muted);justify-content:center}
@@ -116,9 +118,9 @@ body.timeup .wrap{padding-bottom:96px}
     <h2>③ 두 글자 단어</h2>
     <p class="note">실제 대화에서 성조는 거의 단어로 붙어서 나와요. 이 규칙을 의식하면서 듣고 따라 말해 보세요.</p>
     <ul class="tips">
-      <li><b>3성 + 3성 → 2성 + 3성</b>: <span class="han-i">你好</span> nǐ hǎo는 ní hǎo로, <span class="han-i">很好</span>도 hén hǎo로 읽어요.</li>
+      <li><b>3성 + 3성 → 2성 + 3성</b>: <span class="han-i">你好</span> <span class="zy">ㄋㄧˇ ㄏㄠˇ</span>는 <span class="zy">ㄋㄧˊ ㄏㄠˇ</span>로, <span class="han-i">很好</span> <span class="zy">ㄏㄣˇ ㄏㄠˇ</span>도 <span class="zy">ㄏㄣˊ ㄏㄠˇ</span>로 읽어요.</li>
       <li><b>3성 + 다른 성조</b>: 앞 3성은 낮게만 깔고 끝을 올리지 않아요. <span class="han-i">好吃</span>, <span class="han-i">老師</span></li>
-      <li><b>不 + 4성 → 2성</b>: <span class="han-i">不要</span> bù yào는 bú yào로 읽어요.</li>
+      <li><b>不 + 4성 → 2성</b>: <span class="han-i">不要</span> <span class="zy">ㄅㄨˋ ㄧㄠˋ</span>는 <span class="zy">ㄅㄨˊ ㄧㄠˋ</span>로 읽어요.</li>
     </ul>
     <p class="note">你好 → 很好 → 好吃 → 不要 순서로 시작해서 나머지 단어로 넓혀 가세요.</p>
   </section>
@@ -166,7 +168,7 @@ frame.addEventListener("load",()=>{
   const w=frame.contentWindow,doc=frame.contentDocument;
   try{T={voices:w.eval("VOICES"),singles:w.eval("SINGLES"),pairs:w.eval("PAIRS"),w,doc}}catch(e){T=null}
   // The frame's own title block repeats ours; hide it and size the frame to its content.
-  const s=doc.createElement("style");s.textContent="header{display:none}.wrap{padding-top:4px!important}";doc.head.appendChild(s);
+  const s=doc.createElement("style");s.textContent=".pinyin{display:none!important}header{display:none}.wrap{padding-top:4px!important}";doc.head.appendChild(s);
   const fit=()=>{frame.style.height=doc.documentElement.scrollHeight+"px"};
   new ResizeObserver(fit).observe(doc.body);fit();
   if(T)waiters.splice(0).forEach(r=>r(T));
@@ -228,7 +230,7 @@ function answer(t,btn){
   if(!ok){const k=truth+">"+t;d.conf[k]=(d.conf[k]||0)+1}
   save();streak=ok?streak+1:0;renderScore();
   $("answers").querySelectorAll(".ans").forEach(b=>{b.disabled=true;if(+b.dataset.t===truth)b.classList.add("ok");else if(b===btn)b.classList.add("no")});
-  $("fb").innerHTML=`<span class="${ok?"ok-t":"no-t"}">${ok?"맞아요":"아쉬워요, "+NAME[truth]+"이에요"}</span><span class="han">${q.it.h}</span><span class="py">${q.it.py} · ${q.it.zy} · ${q.it.m}</span>`;
+  $("fb").innerHTML=`<span class="${ok?"ok-t":"no-t"}">${ok?"맞아요":"아쉬워요, "+NAME[truth]+"이에요"}</span><span class="han">${q.it.h}</span><span class="zy-big">${q.it.zy}</span><span class="py">${q.it.m}</span>`;
   if(ok){nextT=setTimeout(ask,1300);return}
   // On a miss, offer the heard clip next to one of the confused tone, so the contrast is heard back to back.
   const base=py=>py.normalize("NFD").replace(/[\u0300-\u036f]/g,""),cands=quiz(T).filter(s=>s.t[0]===t),t2=t;
