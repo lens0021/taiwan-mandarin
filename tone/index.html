@@ -113,6 +113,18 @@ details summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="note" id="micMsg" hidden></p>
   </section>
 
+  <section class="card" id="mictest">
+    <div class="res" style="justify-content:space-between"><b>마이크 테스트</b><span class="hint" id="mtState">꺼짐</span></div>
+    <label class="range" for="mtDev">마이크: <select id="mtDev" style="flex:1;min-width:0;font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"><option value="">기본 마이크</option></select></label>
+    <div class="bar" style="height:14px;border-radius:7px;position:relative"><span id="mtLvl" style="width:0%;transition:width .05s"></span><i id="mtThr" style="position:absolute;top:0;bottom:0;width:2px;background:var(--coral);left:0"></i></div>
+    <div class="legend"><span>소리 크기 <b id="mtDb" style="font-family:var(--f-mono)">–</b></span><span>음높이 <b id="mtHz" style="font-family:var(--f-mono)">–</b></span><span>빨간 선을 넘으면 말소리로 인식해요</span></div>
+    <div class="btns">
+      <button class="btn" id="mtStart">테스트 시작</button>
+      <button class="btn" id="mtRec" disabled>3초 녹음 후 듣기</button>
+    </div>
+    <p class="note" id="mtMsg"></p>
+  </section>
+
   <section class="card">
     <div class="range">목소리 높이:
       <button class="tab" id="vLow" aria-selected="false">낮은 편</button>
@@ -337,6 +349,57 @@ function analyzeShow(segsSt,count){
 }
 function showMsg(m){$("result").innerHTML=`<span class="hint">${m}</span>`;draw()}
 
+/* ---------- microphone test ---------- */
+let mt=null;
+const MIC_ERR={NotAllowedError:"마이크 사용이 거부됐어요. 주소창 왼쪽의 자물쇠 아이콘을 눌러 마이크를 '허용'으로 바꾸고 새로고침하세요.",
+  NotFoundError:"마이크를 찾지 못했어요. 윈도우 설정 > 개인 정보 > 마이크에서 앱의 마이크 접근이 켜져 있는지 확인하세요.",
+  NotReadableError:"다른 프로그램(줌, 팀즈 등)이 마이크를 쓰고 있을 수 있어요. 그 프로그램을 닫고 다시 시도하세요.",
+  OverconstrainedError:"고른 마이크를 열 수 없어요. 목록에서 다른 마이크를 골라 보세요.",
+  SecurityError:"이 화면에서는 마이크를 쓸 수 없어요."};
+function micErr(e){return MIC_ERR[e&&e.name]||("마이크를 열지 못했어요 ("+(e&&e.name||e)+").")}
+function micConstraints(){const id=$("mtDev").value;return {audio:{deviceId:id?{exact:id}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:true}}}
+async function listMics(){
+  try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="audioinput");const sel=$("mtDev"),keep=sel.value;
+    sel.innerHTML='<option value="">기본 마이크</option>'+ds.filter(d=>d.deviceId&&d.deviceId!=="default").map((d,i)=>`<option value="${d.deviceId}">${(d.label||"마이크 "+(i+1)).replace(/</g,"&lt;")}</option>`).join("");sel.value=keep}catch(e){}
+}
+function stopTest(){if(!mt)return;cancelAnimationFrame(mt.raf);mt.stream.getTracks().forEach(t=>t.stop());mt.ac.close();mt=null;
+  $("mtStart").textContent="테스트 시작";$("mtRec").disabled=true;$("mtState").textContent="꺼짐";$("mtLvl").style.width="0%";$("mtDb").textContent="–";$("mtHz").textContent="–"}
+async function startTest(){
+  if(rec)stopRec();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$("mtMsg").textContent="이 브라우저는 마이크를 지원하지 않아요. 크롬이나 엣지로 열어 보세요.";return}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia(micConstraints())}catch(e){$("mtMsg").textContent=micErr(e);$("mtState").textContent="실패";return}
+  listMics();
+  const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaStreamSource(stream),an=ac.createAnalyser();an.fftSize=4096;src.connect(an);
+  const buf=new Float32Array(an.fftSize),track=stream.getAudioTracks()[0];
+  mt={ac,stream,an,raf:0,noise:null,t0:performance.now()};
+  $("mtStart").textContent="테스트 끄기";$("mtRec").disabled=false;$("mtState").textContent="듣는 중: "+(track.label||"기본 마이크");
+  $("mtMsg").textContent="아무 말이나 '아—' 하고 길게 내 보세요. 막대가 빨간 선을 넘고 음높이 숫자가 나오면 정상이에요.";
+  let heard=false;
+  const tick=()=>{if(!mt)return;an.getFloatTimeDomainData(buf);let sq=0;for(let i=0;i<buf.length;i++)sq+=buf[i]*buf[i];const r=Math.sqrt(sq/buf.length);
+    if(performance.now()-mt.t0<400)mt.noise=mt.noise==null?r:(mt.noise+r)/2;
+    const thr=Math.max(3*(mt.noise||0),0.008),db=r>0?20*Math.log10(r):-100,pct=v=>Math.max(0,Math.min(100,(20*Math.log10(Math.max(v,1e-5))+60)/60*100));
+    $("mtLvl").style.width=pct(r)+"%";$("mtThr").style.left=pct(thr)+"%";$("mtDb").textContent=Math.round(db)+" dB";
+    if(r>thr){const [x,fs]=downsample(buf,ac.sampleRate),tmin=Math.floor(fs/450),tmax=Math.ceil(fs/65),W=Math.round(fs*0.025),tau=yin(x,0,W,tmin,tmax);
+      $("mtHz").textContent=tau?Math.round(fs/tau)+" Hz":"–";
+      if(tau&&!heard){heard=true;$("mtMsg").textContent="잘 들려요. 이 마이크로 녹음하면 돼요. '3초 녹음 후 듣기'로 내 목소리도 확인해 보세요."}}else $("mtHz").textContent="–";
+    if(!heard&&performance.now()-mt.t0>5000)$("mtMsg").textContent="소리가 거의 안 들어와요. 다른 마이크를 고르거나, 윈도우 소리 설정에서 마이크 볼륨과 음소거를 확인하세요.";
+    mt.raf=requestAnimationFrame(tick)};
+  tick();
+}
+$("mtStart").onclick=()=>mt?stopTest():startTest();
+$("mtDev").onchange=()=>{if(mt){stopTest();startTest()}};
+$("mtRec").onclick=async()=>{
+  if(!mt)return;const ac=mt.ac,src=ac.createMediaStreamSource(mt.stream),sp=ac.createScriptProcessor(2048,1,1),ch=[];
+  sp.onaudioprocess=e=>ch.push(new Float32Array(e.inputBuffer.getChannelData(0)));src.connect(sp);sp.connect(ac.destination);
+  $("mtRec").disabled=true;$("mtRec").textContent="녹음 중…";
+  await new Promise(r=>setTimeout(r,3000));sp.disconnect();src.disconnect();
+  const n=ch.reduce((a,c)=>a+c.length,0),b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);let o=0;ch.forEach(c=>{d.set(c,o);o+=c.length});
+  $("mtRec").textContent="재생 중…";const pl=ac.createBufferSource();pl.buffer=b;pl.connect(ac.destination);pl.start();
+  pl.onended=()=>{$("mtRec").textContent="3초 녹음 후 듣기";$("mtRec").disabled=!mt};
+};
+if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener)navigator.mediaDevices.addEventListener("devicechange",listMics);
+listMics();
+
 /* ---------- copy record ---------- */
 function summary(){
   const d=new Date().toISOString().slice(0,10),L=[`[성조 거울 기록] ${stats.since} ~ ${d}`];
@@ -375,8 +438,9 @@ $("play").onclick=async()=>{
 let rec=null;
 async function startRec(){
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}
-  catch(e){$("micMsg").hidden=false;$("micMsg").textContent="이 화면에서는 마이크를 쓸 수 없어요. 위의 '녹음해서 올리기'를 눌러 휴대폰 녹음기로 녹음한 뒤 파일을 고르세요.";
+  if(mt)stopTest();
+  try{stream=await navigator.mediaDevices.getUserMedia(micConstraints())}
+  catch(e){$("micMsg").hidden=false;$("micMsg").textContent=micErr(e)+" 아래 '마이크 테스트'에서 확인해 보세요. 그래도 안 되면 '녹음해서 올리기'를 쓰세요.";
     $("fileLbl").style.borderColor="var(--coral)";return}
   const ac=new (window.AudioContext||window.webkitAudioContext)();const src=ac.createMediaStreamSource(stream);
   const sp=ac.createScriptProcessor(2048,1,1);const chunks=[];
