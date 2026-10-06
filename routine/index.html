@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1f8a70">
+<title>오늘의 성조 루틴</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#15302f; --muted:#5d7472; --line:#cfdcda;
+  --jade:#1f8a70; --jade-soft:rgba(31,138,112,.14); --coral:#e0533d; --good:#1f8a70; --bad:#c2410c;
+  --f-han:"Noto Serif TC","Songti TC",serif; --f-body:"Noto Sans KR",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1918; --surface:#172423; --ink:#e3eeec; --muted:#93aba8; --line:#2a3b39;
+  --jade:#4cc3a0; --jade-soft:rgba(76,195,160,.16); --coral:#ff7a63; --good:#4cc3a0; --bad:#ff9a5c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1918; --surface:#172423; --ink:#e3eeec; --muted:#93aba8; --line:#2a3b39;
+  --jade:#4cc3a0; --jade-soft:rgba(76,195,160,.16); --coral:#ff7a63; --good:#4cc3a0; --bad:#ff9a5c; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+#frameCard{padding:0;overflow:hidden}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header h1{margin:0;font-size:22px}
+header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+a{color:var(--jade)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 0}
+.step{padding:8px 6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;font:inherit;font-size:13px;cursor:pointer;text-align:center}
+.step b{display:block;color:var(--ink);font-size:14px}
+.step[aria-current="step"]{border-color:var(--jade);box-shadow:inset 0 0 0 1px var(--jade)}
+.step.done b::after{content:" ✓";color:var(--jade)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font-size:17px}
+.note{font-size:13px;color:var(--muted);margin:0}
+.timer{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.timer b{font-family:var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--jade);transition:width .5s}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--jade);box-shadow:inset 0 0 0 1px var(--jade);color:var(--jade);font-weight:700}
+.btn{padding:13px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.btn.main{background:var(--jade);border-color:var(--jade);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.chip:focus-visible,.step:focus-visible,.ans:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.answers{display:grid;gap:8px;grid-template-columns:repeat(var(--n,2),1fr)}
+.ans{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:16px;cursor:pointer}
+.ans svg{width:56px;height:30px}
+.ans small{font-weight:400;font-size:12px;color:var(--muted)}
+.ans.ok{border-color:var(--good);background:var(--jade-soft)}
+.ans.no{border-color:var(--bad)}
+.fb{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
+.fb .han{font-family:var(--f-han);font-size:34px;font-weight:700;line-height:1.1}
+.fb .py{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.ok-t{color:var(--good);font-weight:700}.no-t{color:var(--bad);font-weight:700}
+.score{display:flex;gap:14px;font-size:13px;color:var(--muted);justify-content:center}
+.score b{font-family:var(--f-mono);color:var(--ink)}
+ul.tips{margin:0;padding-left:18px;font-size:14px}
+ul.tips li{margin:3px 0}
+.han-i{font-family:var(--f-han);font-weight:700}
+iframe{width:100%;border:0;display:block;min-height:600px;background:var(--bg)}
+textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+.sum{font-family:var(--f-mono);font-size:13px;white-space:pre-wrap;margin:0;background:var(--bg);border-radius:10px;padding:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>오늘의 성조 루틴</h1>
+    <p>듣기 5분 → 말하기 5분 → 두 글자 단어 5분. 위에서부터 순서대로 하면 돼요. <a href="../">← 도구 목록</a></p>
+  </header>
+
+  <nav class="steps" aria-label="단계">
+    <button class="step" data-s="1" aria-current="step"><b>① 듣기</b>성조 짝 구분</button>
+    <button class="step" data-s="2"><b>② 말하기</b>한 음절</button>
+    <button class="step" data-s="3"><b>③ 단어</b>두 음절</button>
+  </nav>
+
+  <div class="timer" id="timerRow"><span id="timerLbl">① 듣기</span><div class="bar"><span id="timerBar"></span></div><b id="timer">0:00 / 5:00</b></div>
+
+  <!-- Step 1: tone-pair listening quiz -->
+  <section class="card" id="s1">
+    <h2>① 짝 듣기</h2>
+    <p class="note">소리를 듣고 몇 성인지 골라요. 헷갈리는 두 성조만 골라 집중적으로 들으면 귀가 빨리 트여요.</p>
+    <div class="chips" id="pairs" aria-label="성조 짝"></div>
+    <div class="fb" id="fb"><span class="note">아래 ‘시작’을 누르면 소리가 나와요.</span></div>
+    <div class="answers" id="answers"></div>
+    <div class="row">
+      <button class="btn" id="again" disabled>▶ 다시 듣기</button>
+      <button class="btn main" id="startQ">시작</button>
+    </div>
+    <div class="score"><span>오늘 <b id="sc">0/0</b></span><span>연속 정답 <b id="streak">0</b></span></div>
+  </section>
+
+  <!-- Steps 2 and 3: tips above the shared 성조 거울 frame -->
+  <section class="card" id="s2" hidden>
+    <h2>② 직접 소리 내기</h2>
+    <ul class="tips">
+      <li><b>3성</b>: 목소리를 낮게 깔면서 목이 살짝 긁히는 느낌. 대만식은 끝을 거의 안 올려요.</li>
+      <li><b>2성</b>: “응?” 하고 되묻듯 쭉 올려요.</li>
+      <li>▶ 듣기 → ● 녹음 순서로, <span id="s2words">2성·3성 글자</span>를 번갈아 해 보세요. 직접 내 본 소리는 귀로도 더 잘 구분돼요.</li>
+    </ul>
+  </section>
+  <section class="card" id="s3" hidden>
+    <h2>③ 두 글자 단어</h2>
+    <p class="note">실제 대화에서 성조는 거의 단어로 붙어서 나와요. 이 규칙을 의식하면서 듣고 따라 말해 보세요.</p>
+    <ul class="tips">
+      <li><b>3성 + 3성 → 2성 + 3성</b>: <span class="han-i">你好</span> nǐ hǎo는 ní hǎo로, <span class="han-i">很好</span>도 hén hǎo로 읽어요.</li>
+      <li><b>3성 + 다른 성조</b>: 앞 3성은 낮게만 깔고 끝을 올리지 않아요. <span class="han-i">好吃</span>, <span class="han-i">老師</span></li>
+      <li><b>不 + 4성 → 2성</b>: <span class="han-i">不要</span> bù yào는 bú yào로 읽어요.</li>
+    </ul>
+    <p class="note">你好 → 很好 → 好吃 → 不要 순서로 시작해서 나머지 단어로 넓혀 가세요.</p>
+  </section>
+
+  <section class="card" id="frameCard" hidden>
+    <iframe id="tone" src="../tone/" title="성조 거울" allow="microphone; autoplay"></iframe>
+  </section>
+
+  <div class="row" id="nav">
+    <button class="btn" id="prev" disabled>← 이전</button>
+    <button class="btn main" id="next">다음 단계 →</button>
+  </div>
+
+  <!-- Wrap-up -->
+  <section class="card" id="done" hidden>
+    <h2>오늘 루틴 끝!</h2>
+    <p class="note" id="doneMsg"></p>
+    <pre class="sum" id="sum"></pre>
+    <button class="btn main" id="copy">기록 복사</button>
+    <p class="note" id="copyMsg" hidden></p>
+    <textarea id="copyBox" readonly hidden></textarea>
+    <button class="btn" id="restart">처음부터 다시</button>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const STEP_SEC=300;
+
+/* ---------- daily log: one entry per day, kept in localStorage ---------- */
+let log=store.get("tm-routine",{days:{}});
+function day(){const d=today();if(!log.days[d])log.days[d]={listen:{},conf:{},sec:[0,0,0],speak0:null,done:false};return log.days[d]}
+function save(){store.set("tm-routine",log)}
+
+/* ---------- shared data from the 성조 거울 frame (sample clips, word lists) ---------- */
+const frame=$("tone");let T=null;const waiters=[];
+function tone(){return T?Promise.resolve(T):new Promise(r=>waiters.push(r))}
+frame.addEventListener("load",()=>{
+  const w=frame.contentWindow,doc=frame.contentDocument;
+  try{T={voices:w.eval("VOICES"),singles:w.eval("SINGLES"),pairs:w.eval("PAIRS"),w,doc}}catch(e){T=null}
+  // The frame's own title block repeats ours; hide it and size the frame to its content.
+  const s=doc.createElement("style");s.textContent="header{display:none}.wrap{padding-top:4px!important}";doc.head.appendChild(s);
+  const fit=()=>{frame.style.height=doc.documentElement.scrollHeight+"px"};
+  new ResizeObserver(fit).observe(doc.body);fit();
+  if(T)waiters.splice(0).forEach(r=>r(T));
+  if(step>1)setupFrame();
+});
+
+/* ---------- step 1: listening ---------- */
+const PAIR_OPTS=[[2,3],[1,4],[1,2],[3,4],[2,4],[1,3],[1,2,3,4]];
+const NAME={1:"1성",2:"2성",3:"3성",4:"4성"},SHAPE={1:"높고 평평",2:"올라감",3:"낮게 깔림",4:"뚝 떨어짐"};
+const PATH={1:"M4 7 L52 7",2:"M4 17 L28 18 L52 4",3:"M4 15 L28 25 L52 23",4:"M4 4 L52 26"};
+let pairKey=store.get("tm-routine-pair","2-3"),q=null,lastH=null,streak=0,ctx=null,src=null,nextT=0;
+const pairOf=k=>k.split("-").map(Number);
+function renderPairs(){
+  $("pairs").innerHTML="";
+  PAIR_OPTS.forEach(p=>{const k=p.join("-"),b=document.createElement("button");b.className="chip";
+    b.textContent=p.length===4?"전체":p.join("↔")+"성";b.setAttribute("aria-pressed",k===pairKey);
+    b.onclick=()=>{pairKey=k;store.set("tm-routine-pair",k);renderPairs();renderAnswers();if(q)ask()};$("pairs").appendChild(b)});
+}
+function renderAnswers(){
+  const p=pairOf(pairKey);$("answers").style.setProperty("--n",p.length);
+  $("answers").innerHTML=p.map(t=>`<button class="ans" data-t="${t}" ${q?"":"disabled"}><svg viewBox="0 0 56 30"><path d="${PATH[t]}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${NAME[t]}<small>${SHAPE[t]}</small></button>`).join("");
+  $("answers").querySelectorAll(".ans").forEach(b=>b.onclick=()=>answer(+b.dataset.t,b));
+}
+const decoded={};
+async function clip(v,h){
+  const k=v+h;if(decoded[k])return decoded[k];
+  const t=await tone(),bin=atob(t.voices[v].audio[h]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();return decoded[k]=await ctx.decodeAudioData(u8.buffer);
+}
+async function play(v,h,when){
+  const ab=await clip(v,h);if(ctx.state==="suspended")await ctx.resume();
+  if(src&&!when)try{src.stop()}catch(e){}
+  const s=ctx.createBufferSource();s.buffer=ab;s.connect(ctx.destination);s.start(ctx.currentTime+(when||0));if(!when)src=s;return ab.duration;
+}
+async function ask(){
+  clearTimeout(nextT);
+  const t=await tone();if(!t){$("fb").innerHTML='<span class="no-t">소리를 불러오지 못했어요. 새로고침해 보세요.</span>';return}
+  const p=pairOf(pairKey),pool=t.singles.filter(s=>p.includes(s.t[0])&&s.h!==lastH);
+  // Pick the tone first so each tone comes up equally often, then a syllable and a voice at random.
+  const want=p[Math.floor(Math.random()*p.length)],cand=pool.filter(s=>s.t[0]===want);
+  const it=(cand.length?cand:pool)[Math.floor(Math.random()*(cand.length?cand:pool).length)];
+  q={it,v:Math.random()<0.6?"m":"f",answered:false};lastH=it.h;
+  renderAnswers();$("fb").innerHTML='<span class="note">몇 성일까요?</span>';$("again").disabled=false;
+  try{await play(q.v,it.h)}catch(e){$("fb").innerHTML='<span class="no-t">소리를 재생하지 못했어요. 소리 설정을 확인해 보세요.</span>'}
+}
+function answer(t,btn){
+  if(!q||q.answered)return;q.answered=true;
+  const truth=q.it.t[0],ok=t===truth,d=day(),key=pairKey;
+  d.listen[key]=d.listen[key]||{};const c=d.listen[key][truth]=d.listen[key][truth]||[0,0];c[1]++;if(ok)c[0]++;
+  if(!ok){const k=truth+">"+t;d.conf[k]=(d.conf[k]||0)+1}
+  save();streak=ok?streak+1:0;renderScore();
+  $("answers").querySelectorAll(".ans").forEach(b=>{b.disabled=true;if(+b.dataset.t===truth)b.classList.add("ok");else if(b===btn)b.classList.add("no")});
+  $("fb").innerHTML=`<span class="${ok?"ok-t":"no-t"}">${ok?"맞아요":"아쉬워요, "+NAME[truth]+"이에요"}</span><span class="han">${q.it.h}</span><span class="py">${q.it.py} · ${q.it.zy} · ${q.it.m}</span>`;
+  if(ok){nextT=setTimeout(ask,1300);return}
+  // On a miss, play the heard clip and then one of the confused tone, so the contrast is heard back to back.
+  const base=py=>py.normalize("NFD").replace(/[\u0300-\u036f]/g,""),cands=T.singles.filter(s=>s.t[0]===t),t2=t;
+  const other=cands.find(s=>base(s.py)===base(q.it.py))||cands[Math.floor(Math.random()*cands.length)];
+  $("fb").insertAdjacentHTML("beforeend",`<span class="note">${other?`비교: ${q.it.h}(${NAME[truth]}) → ${other.h}(${NAME[t2]}) `:""}다음 문제는 ‘다음 문제’를 누르세요.</span>`);
+  (async()=>{try{const d1=await play(q.v,q.it.h);if(other)await play(q.v,other.h,d1+0.5)}catch(e){}})();
+  $("startQ").textContent="다음 문제";
+}
+function renderScore(){
+  const L=day().listen;let ok=0,n=0;Object.values(L).forEach(o=>Object.values(o).forEach(c=>{ok+=c[0];n+=c[1]}));
+  $("sc").textContent=ok+"/"+n;$("streak").textContent=streak;
+}
+$("startQ").onclick=()=>{$("startQ").textContent="다음 문제";ask()};
+$("again").onclick=()=>{if(q)play(q.v,q.it.h).catch(()=>{})};
+
+/* ---------- steps 2 and 3 drive the embedded 성조 거울 ---------- */
+let step=1;
+function stats(){return store.get("tm-stats",null)}
+function setupFrame(){
+  const t=T;if(!t)return;const doc=t.doc;
+  const tab=doc.getElementById(step===2?"tab1":"tab2");if(tab&&tab.getAttribute("aria-selected")!=="true")tab.click();
+  const p=pairOf(pairKey),first=step===2?t.singles.find(s=>p.includes(s.t[0])):t.pairs.find(s=>s.h==="你好");
+  if(first)[...doc.querySelectorAll("#chips .chip")].find(b=>b.textContent===first.h)?.click();
+  if(step===2)$("s2words").textContent=t.singles.filter(s=>p.includes(s.t[0])).map(s=>s.h).join("·")+" 글자";
+}
+
+/* ---------- step navigation and timer ---------- */
+let tick=0;
+function go(s){
+  step=s;const d=day();
+  if(s>1&&!d.speak0)d.speak0=stats()||{1:[0,0],2:[0,0],3:[0,0],4:[0,0],items:{}};
+  save();
+  document.querySelectorAll(".step").forEach(b=>{const n=+b.dataset.s;b.toggleAttribute("aria-current",false);if(n===s)b.setAttribute("aria-current","step");b.classList.toggle("done",d.sec[n-1]>=STEP_SEC)});
+  $("s1").hidden=s!==1;$("s2").hidden=s!==2;$("s3").hidden=s!==3;$("frameCard").hidden=s===1||s===4;
+  $("done").hidden=s!==4;$("timerRow").hidden=s===4;$("nav").hidden=s===4;
+  $("prev").disabled=s===1;$("next").textContent=s===3?"오늘 루틴 마치기 ✓":"다음 단계 →";
+  $("timerLbl").textContent=["","① 듣기","② 말하기","③ 단어"][s]||"";
+  if(s!==1)clearTimeout(nextT);
+  if(s===2||s===3)setupFrame();
+  if(s===4)finish();
+  renderTimer();window.scrollTo({top:0});
+}
+function renderTimer(){
+  if(step>3)return;const sec=day().sec[step-1],m=Math.floor(sec/60),r=sec%60;
+  $("timer").textContent=`${m}:${String(r).padStart(2,"0")} / 5:00`;$("timerBar").style.width=Math.min(100,100*sec/STEP_SEC)+"%";
+  if(sec>=STEP_SEC){$("next").classList.add("main");document.querySelector(`.step[data-s="${step}"]`).classList.add("done")}
+}
+// Count time only while the page is visible, so leaving the tab open doesn't inflate the log.
+setInterval(()=>{if(document.hidden||step>3)return;const d=day();d.sec[step-1]++;if(d.sec[step-1]%10===0)save();renderTimer()},1000);
+document.querySelectorAll(".step").forEach(b=>b.onclick=()=>go(+b.dataset.s));
+$("prev").onclick=()=>go(Math.max(1,step-1));
+$("next").onclick=()=>go(step+1);
+$("restart").onclick=()=>go(1);
+
+/* ---------- wrap-up ---------- */
+function summary(){
+  const d=day(),date=today(),tot=Math.round(d.sec.reduce((a,b)=>a+b,0)/60),L=[`[성조 루틴] ${date} (${tot}분: 듣기 ${Math.round(d.sec[0]/60)} · 말하기 ${Math.round(d.sec[1]/60)} · 단어 ${Math.round(d.sec[2]/60)})`];
+  const ls=Object.entries(d.listen).map(([k,o])=>{let ok=0,n=0;const per=Object.entries(o).map(([t,c])=>{ok+=c[0];n+=c[1];return `${t}성 ${c[0]}/${c[1]}`});
+    return `${k==="1-2-3-4"?"전체":k.replace("-","↔")} ${ok}/${n} (${per.join(", ")})`});
+  L.push("듣기: "+(ls.length?ls.join("; "):"안 함"));
+  const cf=Object.entries(d.conf).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{const [a,b]=k.split(">");return `${a}성을 ${b}성으로 ${n}회`});
+  if(cf.length)L.push("헷갈림: "+cf.join(", "));
+  const s0=d.speak0,s1=stats();
+  if(s0&&s1){
+    const sp=[1,2,3,4].map(t=>[t,s1[t][0]-(s0[t]?.[0]||0),s1[t][1]-(s0[t]?.[1]||0)]).filter(x=>x[2]>0).map(([t,ok,n])=>`${t}성 ${ok}/${n}`);
+    L.push("말하기 판정: "+(sp.length?sp.join(" · "):"안 함"));
+    const words=Object.entries(s1.items||{}).map(([k,v])=>{const o=(s0.items||{})[k]||[0,0];return [k,v[0]-o[0],v[1]-o[1]]}).filter(x=>x[2]>0&&x[0].split("#")[0].length>1);
+    const byW={};words.forEach(([k,ok,n])=>{const w=k.split("#")[0];byW[w]=byW[w]||[0,0];byW[w][0]+=ok;byW[w][1]+=n});
+    if(Object.keys(byW).length)L.push("두 음절(음절별 정답/시도): "+Object.entries(byW).map(([w,c])=>`${w} ${c[0]}/${c[1]}`).join(", "));
+  }
+  const last7=Object.entries(log.days).filter(([k])=>(new Date(today())-new Date(k))/864e5<7).filter(([,v])=>v.sec.reduce((a,b)=>a+b,0)>=300).length;
+  L.push(`최근 7일 중 ${last7}일 연습`);
+  return L.join("\n");
+}
+function finish(){
+  const d=day();d.done=true;save();
+  $("sum").textContent=summary();
+  const tot=Math.round(d.sec.reduce((a,b)=>a+b,0)/60);
+  $("doneMsg").textContent=tot>=10?`오늘 ${tot}분 했어요. 내일도 같은 순서로 해요.`:`오늘은 ${tot}분 했어요. 10~15분이 목표예요. 짧아도 매일 하는 게 더 중요해요.`;
+}
+$("copy").onclick=async()=>{
+  const txt=summary(),box=$("copyBox"),msg=$("copyMsg");msg.hidden=false;
+  try{await navigator.clipboard.writeText(txt);msg.textContent="복사했어요. Claude 채팅에 붙여 넣어 주세요.";box.hidden=true}
+  catch(e){box.hidden=false;box.value=txt;box.focus();box.select();msg.textContent="자동 복사가 안 돼서 아래에 띄웠어요. 길게 눌러 복사해 주세요."}
+};
+
+renderPairs();renderAnswers();renderScore();go(1);
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
