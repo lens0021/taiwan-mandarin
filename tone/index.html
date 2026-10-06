@@ -107,7 +107,8 @@ details summary{cursor:pointer;color:var(--ink);font-weight:500}
       <button class="btn" id="play">▶ 듣기</button>
       <button class="btn rec" id="rec">● 녹음</button>
     </div>
-    <div class="range">듣기 음성: <button class="tab" id="vM" aria-selected="true">남성</button><button class="tab" id="vF" aria-selected="false">여성</button></div>
+    <div class="range">듣기 음성: <button class="tab" id="vM" aria-selected="true">남성</button><button class="tab" id="vF" aria-selected="false">여성</button>
+      <label for="autoNext" style="margin-left:auto"><input type="checkbox" id="autoNext" style="accent-color:var(--jade)"> 맞으면 다음 단어로</label></div>
     <label class="file" id="fileLbl">🎙 마이크가 안 되면: 휴대폰 녹음기로 녹음해서 올리기
       <input type="file" id="file" accept="audio/*" capture="user">
     </label>
@@ -205,8 +206,10 @@ function chao(s){const [lo,hi]=range();return 1+4*(s-lo)/(hi-lo)}
 function renderChips(){
   const list=mode===1?SINGLES:PAIRS;$("chips").innerHTML="";
   list.forEach(it=>{const b=document.createElement("button");b.className="chip";b.textContent=it.h;
-    b.setAttribute("aria-pressed",it===cur);b.onclick=()=>{cur=it;last=null;sampleSegs=null;renderChips();renderWord()};$("chips").appendChild(b)});
+    b.setAttribute("aria-pressed",it===cur);b.onclick=()=>selectItem(it);$("chips").appendChild(b)});
 }
+let nextTimer=0;
+function selectItem(it){clearTimeout(nextTimer);cur=it;last=null;sampleSegs=null;renderChips();renderWord()}
 function renderWord(){
   $("han").textContent=cur.h;$("zy").textContent=cur.zy;$("py").textContent=cur.py;$("mean").textContent=cur.m;
   $("target").textContent="목표: "+cur.t.map(t=>t+"성").join(" + ");
@@ -379,7 +382,11 @@ function analyzeShow(segsSt,count){
   if(!prefs.t1)html+='<div class="hint" style="color:var(--bad)">아래 \'내 1성 높이\'를 정해 두면 판정이 더 정확해져요.</div>';
   html+='<div class="hint" style="font-size:12px">음높이만 보고 내린 대략적인 판정이에요. 그래프 모양이 목표 띠를 따라가는지 같이 보세요.</div>';
   $("result").innerHTML=html;
-  if(count){store.set("tm-stats",stats);renderStats()}
+  if(count){store.set("tm-stats",stats);renderStats();
+    if(res.every((r,k)=>r.t===cur.t[k])&&$("autoNext").checked){
+      const list=mode===1?SINGLES:PAIRS,it=cur,next=list[(list.indexOf(cur)+1)%list.length];
+      $("result").insertAdjacentHTML("beforeend",`<div class="hint">잘했어요! 곧 다음 단어 <b style="font-family:var(--f-han)">${next.h}</b>(으)로 넘어가요.</div>`);
+      clearTimeout(nextTimer);nextTimer=setTimeout(()=>{if(cur===it&&!rec){selectItem(next);$("play").click()}},2000)}}
 }
 function showMsg(m){$("result").innerHTML=`<span class="hint">${m}</span>`;draw()}
 
@@ -485,6 +492,7 @@ function renderVoice(){$("vM").setAttribute("aria-selected",voice==="m");$("vF")
 $("vM").onclick=()=>{voice="m";store.set("tm-voice",voice);renderVoice()};
 $("vF").onclick=()=>{voice="f";store.set("tm-voice",voice);renderVoice()};
 renderVoice();
+$("autoNext").checked=store.get("tm-autonext",true);$("autoNext").onchange=e=>store.set("tm-autonext",e.target.checked);
 $("play").onclick=async()=>{
   const it=cur,v=voice;if(!VOICES[v].audio[it.h])return;
   let ab;try{ab=await decodeSample(v,it.h);if(playCtx.state==="suspended")await playCtx.resume();
