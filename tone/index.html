@@ -370,11 +370,21 @@ async function startRec(){
   catch(e){$("micMsg").hidden=false;$("micMsg").textContent="이 화면에서는 마이크를 쓸 수 없어요. 위의 '녹음해서 올리기'를 눌러 휴대폰 녹음기로 녹음한 뒤 파일을 고르세요.";
     $("fileLbl").style.borderColor="var(--coral)";return}
   const ac=new (window.AudioContext||window.webkitAudioContext)();const src=ac.createMediaStreamSource(stream);
-  const sp=ac.createScriptProcessor(4096,1,1);const chunks=[];
-  sp.onaudioprocess=e=>chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  const sp=ac.createScriptProcessor(2048,1,1);const chunks=[];
+  // Voice activity: learn the room's noise for ~0.3 s, then stop after ~0.7 s of quiet once speech has started.
+  const blk=2048/ac.sampleRate,v={t:0,noise:0,nN:0,speech:0,quiet:0,started:false};
+  const maxT=cur.t.length>1?6:4.5;
+  sp.onaudioprocess=e=>{
+    const d=e.inputBuffer.getChannelData(0);chunks.push(new Float32Array(d));
+    let sq=0;for(let i=0;i<d.length;i++)sq+=d[i]*d[i];const r=Math.sqrt(sq/d.length);v.t+=blk;
+    if(v.t<0.3){v.noise+=r;v.nN++;return}
+    const thr=Math.max(3*(v.noise/(v.nN||1)),0.008);
+    if(r>thr){v.speech+=blk;v.quiet=0;if(v.speech>0.12)v.started=true}else if(v.started)v.quiet+=blk;
+    if((v.started&&v.quiet>0.7)||v.t>maxT||(!v.started&&v.t>5))setTimeout(stopRec,0);
+  };
   src.connect(sp);sp.connect(ac.destination);
-  rec={ac,stream,sp,src,chunks,timer:setTimeout(stopRec,cur.t.length>1?3500:2500)};
-  $("rec").classList.add("on");$("rec").textContent="■ 멈추기";showMsg("듣고 있어요… 말해 보세요.");
+  rec={ac,stream,sp,src,chunks,timer:setTimeout(stopRec,(maxT+1)*1000)};
+  $("rec").classList.add("on");$("rec").textContent="■ 듣는 중";showMsg("말해 보세요. 말이 끝나면 자동으로 멈춰요.");
 }
 function stopRec(){
   if(!rec)return;const r=rec;rec=null;clearTimeout(r.timer);
