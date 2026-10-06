@@ -142,6 +142,7 @@ textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg
   </section>
 </div>
 
+<script src="clips.js" defer></script>
 <script>
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
@@ -184,10 +185,13 @@ function renderAnswers(){
   $("answers").innerHTML=p.map(t=>`<button class="ans" data-t="${t}" ${q?"":"disabled"}><svg viewBox="0 0 56 30"><path d="${PATH[t]}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${NAME[t]}<small>${SHAPE[t]}</small></button>`).join("");
   $("answers").querySelectorAll(".ans").forEach(b=>b.onclick=()=>answer(+b.dataset.t,b));
 }
+// Quiz syllables come from clips.js (same syllable in several tones); fall back to the 성조 거울 list until it loads.
+let QUIZ=null;
+function quiz(t){if(!QUIZ&&window.ROUTINE_CLIPS)QUIZ=ROUTINE_CLIPS.items.map(x=>({...x,t:[x.t]}));return QUIZ||t.singles}
 const decoded={};
 async function clip(v,h){
   const k=v+h;if(decoded[k])return decoded[k];
-  const t=await tone(),bin=atob(t.voices[v].audio[h]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  const t=await tone(),bin=atob((window.ROUTINE_CLIPS&&ROUTINE_CLIPS[v][h])||t.voices[v].audio[h]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
   ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();return decoded[k]=await ctx.decodeAudioData(u8.buffer);
 }
 // Every play request cancels whatever is playing or still decoding, so only the latest request is ever heard.
@@ -204,7 +208,7 @@ async function play(v,...hs){
 async function ask(){
   clearTimeout(nextT);stopAll();
   const t=await tone();if(!t){$("fb").innerHTML='<span class="no-t">소리를 불러오지 못했어요. 새로고침해 보세요.</span>';return}
-  const p=pairOf(pairKey),pool=t.singles.filter(s=>p.includes(s.t[0])&&s.h!==lastH);
+  const p=pairOf(pairKey),pool=quiz(t).filter(s=>p.includes(s.t[0])&&s.h!==lastH);
   // Pick the tone first so each tone comes up equally often, then a syllable and a voice at random.
   const want=p[Math.floor(Math.random()*p.length)],cand=pool.filter(s=>s.t[0]===want);
   const it=(cand.length?cand:pool)[Math.floor(Math.random()*(cand.length?cand:pool).length)];
@@ -222,7 +226,7 @@ function answer(t,btn){
   $("fb").innerHTML=`<span class="${ok?"ok-t":"no-t"}">${ok?"맞아요":"아쉬워요, "+NAME[truth]+"이에요"}</span><span class="han">${q.it.h}</span><span class="py">${q.it.py} · ${q.it.zy} · ${q.it.m}</span>`;
   if(ok){nextT=setTimeout(ask,1300);return}
   // On a miss, offer the heard clip next to one of the confused tone, so the contrast is heard back to back.
-  const base=py=>py.normalize("NFD").replace(/[\u0300-\u036f]/g,""),cands=T.singles.filter(s=>s.t[0]===t),t2=t;
+  const base=py=>py.normalize("NFD").replace(/[\u0300-\u036f]/g,""),cands=quiz(T).filter(s=>s.t[0]===t),t2=t;
   const other=cands.find(s=>base(s.py)===base(q.it.py))||cands[Math.floor(Math.random()*cands.length)];
   if(other){const cur=q;$("fb").insertAdjacentHTML("beforeend",`<button class="chip" id="cmp" style="margin-top:6px">▶ 비교 듣기: ${cur.it.h}(${NAME[truth]}) 다음에 ${other.h}(${NAME[t2]})</button>`);
     $("cmp").onclick=()=>{if(q===cur)play(cur.v,cur.it.h,other.h).catch(()=>{})}}
