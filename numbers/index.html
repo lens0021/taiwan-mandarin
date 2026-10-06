@@ -18,13 +18,9 @@ main{max-width:560px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-dire
 header a{color:var(--muted);font-size:13px;text-decoration:none}
 h1{margin:2px 0 0;font-size:22px}
 p{margin:0}.note{font-size:13px;color:var(--muted)}
-.tabs,.chips{display:flex;gap:6px}
-.tab{flex:1;padding:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
-.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
 .chip[aria-pressed="true"]{border-color:var(--jade);box-shadow:inset 0 0 0 1px var(--jade);color:var(--jade)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.paid{font-size:15px}.paid b{font-size:22px;color:var(--jade)}
 .btn{padding:13px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
 .btn.main{background:var(--jade);border-color:var(--jade);color:#fff}
 .row{display:grid;grid-template-columns:1fr 2fr;gap:8px}
@@ -43,7 +39,7 @@ p{margin:0}.note{font-size:13px;color:var(--muted)}
 .say{border:0;background:none;padding:0;color:inherit;font:inherit;font-family:var(--f-han);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
 .top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
 .item{font-size:14px}
-.lbl{font-size:13px;color:var(--muted);margin-bottom:-6px}#paidBox .lbl{margin-bottom:4px}
+.lbl{font-size:13px;color:var(--muted);margin-bottom:-6px}
 .res{font-weight:700}.res.ok{color:var(--good)}.res.no{color:var(--bad)}
 .ans{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--bg);cursor:pointer;border:0;color:inherit;font:inherit;text-align:left}
 .ans .han{font-family:var(--f-han);font-size:30px;font-weight:700}
@@ -51,44 +47,30 @@ p{margin:0}.note{font-size:13px;color:var(--muted)}
 .stats{font-size:13px;color:var(--muted)}
 textarea{width:100%;box-sizing:border-box;min-height:110px;font:12px var(--f-mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px}
 details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
-.btn:focus-visible,.chip:focus-visible,.tab:focus-visible,.ans:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.btn:focus-visible,.chip:focus-visible,.ans:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
 </style>
 <script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{}))</script>
 </head>
 <body>
 <main>
-  <header><a href="../">← 연습 목록</a><h1>가격 듣기</h1><p class="note">가게에서 말하는 가격을 듣고 동전과 지폐로 내요.</p></header>
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" data-mode="p" aria-selected="true">가격 듣기</button>
-    <button class="tab" role="tab" data-mode="c" aria-selected="false">거스름돈 확인</button>
-  </div>
+  <header><a href="../">← 연습 목록</a><h1>가격 듣기</h1><p class="note">가게에서 말하는 가격을 듣고 내 지갑에서 낼 돈을 골라요.</p></header>
 
   <section class="card" id="startCard">
-    <p>한 번에 20문제예요. 소리가 바로 나와요. 들은 만큼 돈을 골라 내세요.</p>
+    <p>한 번에 20문제예요. 소리가 바로 나와요. 지갑에 든 돈으로 가격만큼, 또는 조금 넘게 내세요.</p>
     <p class="note" id="lvNote"></p>
     <button class="btn main" id="start">시작</button>
   </section>
 
   <section class="card" id="quiz" hidden>
     <div class="top"><span id="lvTxt"></span><span id="prog"></span></div>
-    <div id="paidBox" hidden><p class="lbl">내가 낸 돈</p><div class="money" id="paid"></div></div>
     <button class="btn" id="play">▶ 다시 듣기</button>
-    <div id="payBox" style="display:flex;flex-direction:column;gap:12px">
-    <p class="lbl">낼 돈 (누르면 빠져요)</p>
-    <div class="tray money" id="tray" data-empty="아래 돈을 눌러 담으세요"></div>
+    <p class="lbl">낼 돈 (누르면 지갑으로 돌아가요)</p>
+    <div class="tray money" id="tray" data-empty="지갑에서 돈을 눌러 담으세요"></div>
+    <p class="lbl">내 지갑</p>
     <div class="money" id="wallet"></div>
     <div class="row">
       <button class="btn" id="clear">비우기</button>
       <button class="btn main" id="check">내기</button>
-    </div>
-    </div>
-    <div id="judgeBox" hidden style="display:flex;flex-direction:column;gap:12px">
-    <p class="lbl">사장님이 거슬러 준 돈</p>
-    <div class="tray money" id="given"></div>
-    <div class="row" style="grid-template-columns:1fr 1fr">
-      <button class="btn main" id="yes">맞아요</button>
-      <button class="btn" id="no">틀렸어요</button>
-    </div>
     </div>
     <p class="res" id="res" hidden></p>
     <button class="ans" id="ans" hidden title="눌러서 다시 듣기"><span class="han" id="ansHan"></span><span class="zy" id="ansZy"></span><span class="note" id="ansNote"></span><span class="money" id="ansMoney"></span></button>
@@ -186,16 +168,33 @@ function money(v,onclick){
   b.className="m "+(v>=100?"bill b":"coin c")+v;b.textContent=v;b.setAttribute("aria-label",v+"元");return b;
 }
 function fewest(x){const r=[];for(const d of DENOM)while(x>=d){r.push(d);x-=d}return r}
-let tray=[];
+// The wallet holds a limited, random mix; tapping moves money between wallet and tray.
+let tray=[],wallet=[];
 function drawTray(){
-  const t=$("tray");t.innerHTML="";
-  tray.forEach((v,i)=>t.append(money(v,answered?null:()=>{tray.splice(i,1);drawTray()})));
+  const t=$("tray"),w=$("wallet");t.innerHTML="";w.innerHTML="";
+  tray.forEach((v,i)=>t.append(money(v,answered?null:()=>{tray.splice(i,1);wallet.push(v);wallet.sort((a,b)=>b-a);drawTray()})));
+  wallet.forEach((v,i)=>w.append(money(v,answered?null:()=>{wallet.splice(i,1);tray.push(v);tray.sort((a,b)=>b-a);drawTray()})));
 }
-DENOM.forEach(v=>$("wallet").append(money(v,()=>{if(answered)return;tray.push(v);tray.sort((a,b)=>b-a);drawTray()})));
-$("clear").onclick=()=>{if(!answered){tray=[];drawTray()}};
+$("clear").onclick=()=>{if(!answered){wallet=wallet.concat(tray).sort((a,b)=>b-a);tray=[];drawTray()}};
+const MAXC={1000:1,500:1,100:4,50:2,10:5,5:2,1:4};
+function fillWallet(n){
+  let w;do{w=[];for(const d of DENOM){const k=Math.floor(Math.random()*(MAXC[d]+1));for(let i=0;i<k;i++)w.push(d)}}
+  while(w.reduce((a,b)=>a+b,0)<n||w.length<4);
+  return w;
+}
+// Best payment from the wallet: the smallest total that covers the price, then the fewest pieces.
+function bestPay(w,n){
+  const cnt={};w.forEach(v=>cnt[v]=(cnt[v]||0)+1);const ds=Object.keys(cnt).map(Number);let best=null;
+  (function rec(i,sum,pieces){
+    if(i===ds.length){if(sum>=n&&(!best||sum<best.sum||sum===best.sum&&pieces.length<best.p.length))best={sum,p:pieces.slice()};return}
+    for(let k=0;k<=cnt[ds[i]];k++){rec(i+1,sum+k*ds[i],pieces);pieces.push(ds[i])}
+    for(let k=0;k<=cnt[ds[i]];k++)pieces.pop();
+  })(0,0,[]);
+  return best.p.sort((a,b)=>b-a);
+}
 
 /* ---------- state ---------- */
-let S=store.get("tm-numbers",{mode:"p",log:[]});if(S.level==null)S.level=0;delete S.range;
+let S=store.get("tm-numbers",{log:[]});delete S.mode;if(S.level==null)S.level=0;delete S.range;
 let q=null,answered=false,miss=[],count=0,done=0,right=0;
 const SESSION=20;
 const save=()=>store.set("tm-numbers",S);
@@ -211,8 +210,6 @@ function adjustLevel(){
   return "";
 }
 
-function setMode(m){S.mode=m;save();document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.mode===m));if(!$("quiz").hidden&&!answered)newQ()}
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 
 function pick(){
   const L=LEVELS[S.level];
@@ -227,26 +224,18 @@ function newQ(){
   const n=pick();
   $("lvTxt").textContent=lvText();$("prog").textContent=(done+1)+" / "+SESSION;
   $("item").hidden=$("lvMsg").hidden=true;
-  // In change mode you hand over the smallest bill that covers the price.
-  const paid=S.mode==="c"?(n<100?100:n<500?500:1000):0;
-  q={n,paid,mode:S.mode,replays:0};answered=false;
-  $("paidBox").hidden=!paid;$("paid").innerHTML="";if(paid)$("paid").append(money(paid));
-  // Change mode, customer side: you paid, the shopkeeper hands back change, sometimes wrong.
-  if(paid){const c=paid-n;let g=c;
-    if(Math.random()<.45){const d=[5,10,50,100];do{g=c+(Math.random()<.5?-1:1)*d[Math.floor(Math.random()*d.length)]}while(g<=0||g>=paid||g===c)}
-    q.given=g;$("given").innerHTML="";fewest(g).forEach(x=>$("given").append(money(x)))}
-  $("payBox").hidden=!!paid;$("judgeBox").hidden=!paid;$("yes").disabled=$("no").disabled=false;
-  tray=[];drawTray();
+  q={n,replays:0};answered=false;
+  tray=[];wallet=fillWallet(n);drawTray();
   $("res").hidden=$("ans").hidden=$("next").hidden=true;$("check").hidden=$("clear").hidden=false;
   say(n);
 }
-function check(judge){
+function check(){
   if(answered){newQ();return}
-  const c=q.mode==="c";if(!c&&!tray.length)return;
-  const v=c?q.given:tray.reduce((a,b)=>a+b,0),want=c?q.paid-q.n:q.n,ok=c?judge===(v===want):v===want;answered=true;drawTray();
-  $("yes").disabled=$("no").disabled=true;
+  if(!tray.length)return;
+  // Right = covers the price with nothing extra: no single piece could be taken back.
+  const v=tray.reduce((a,b)=>a+b,0),short=v<q.n,extra=!short&&tray.find(x=>v-x>=q.n),ok=!short&&!extra;answered=true;drawTray();
   if(!ok&&!miss.includes(q.n))miss.push(q.n);
-  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,j:c?(judge?1:0):undefined,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
+  S.log.push({d:today(),n:q.n,a:v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
   if(S.log.length>2000)S.log=S.log.slice(-2000);
   done++;if(ok)right++;
   const msg=adjustLevel();save();
@@ -256,11 +245,11 @@ function check(judge){
   $("item").append("이 정도 가격: ",b," "+it[1]+" "+it[2]+" 약 "+it[3]+"元");
   $("res").hidden=false;$("res").className="res "+(ok?"ok":"no");
   // Digits appear only now, after the answer.
-  $("res").textContent=c?(ok?"정답! ":"아쉬워요. ")+(v===want?"사장님이 "+v+"元을 맞게 줬어요.":"사장님이 "+v+"元을 줬는데, 받을 돈은 "+want+"元이에요.")
-    :ok?"정답! "+want+"元":"아쉬워요. 담은 돈 "+v+"元, 정답 "+want+"元";
+  $("res").textContent=ok?"정답! "+q.n+"元에 "+v+"元을 냈어요"+(v>q.n?" (거스름돈 "+(v-q.n)+"元)":"")+".":
+    short?"부족해요. 가격은 "+q.n+"元인데 "+v+"元을 냈어요.":"충분하지만 안 내도 되는 돈이 섞여 있어요 (예: "+extra+"元). 가격은 "+q.n+"元이에요.";
   const s=zh(q.n);$("ansHan").textContent=s;$("ansZy").textContent=zhuyin(s);
-  $("ansNote").textContent=q.mode==="c"?"가격 "+q.n+"元 · 거스름돈 "+q.paid+" − "+q.n+" = "+(q.paid-q.n)+"元 · 눌러서 다시 듣기":q.n+"元 · 눌러서 다시 듣기";
-  $("ansMoney").innerHTML="";if(c?v!==want:!ok)fewest(want).forEach(x=>$("ansMoney").append(money(x)));
+  $("ansNote").textContent=q.n+"元 · 눌러서 다시 듣기"+(ok?"":" · 이렇게 내면 좋아요:");
+  $("ansMoney").innerHTML="";if(!ok)bestPay(wallet.concat(tray),q.n).forEach(x=>$("ansMoney").append(money(x)));
   $("ans").hidden=false;$("check").hidden=$("clear").hidden=true;$("next").hidden=false;$("next").focus();
   $("next").textContent=done>=SESSION?"결과 보기 ▶":"다음 ▶";
   showStats();
@@ -273,7 +262,7 @@ function finish(){
 $("start").onclick=startSession;$("again").onclick=startSession;
 $("play").onclick=()=>{if(q){q.replays++;say(q.n)}};
 $("ans").onclick=()=>q&&say(q.n);
-$("check").onclick=()=>check();$("yes").onclick=()=>check(true);$("no").onclick=()=>check(false);$("next").onclick=newQ;
+$("check").onclick=check;$("next").onclick=newQ;
 
 function showStats(){
   const t=S.log.filter(x=>x.d===today()),ok=t.filter(x=>x.ok).length;
@@ -285,15 +274,15 @@ function summary(){
   const L=S.log,t=L.filter(x=>x.d===today()),days=new Set(L.map(x=>x.d));
   const pct=a=>a.length?Math.round(a.filter(x=>x.ok).length/a.length*100)+"% ("+a.filter(x=>x.ok).length+"/"+a.length+")":"-";
   const lines=["[가격 듣기 기록] "+today(),
-    "오늘: 가격 "+pct(t.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(t.filter(x=>x.m==="c")),
-    "전체: "+L.length+"문제, "+days.size+"일 · 가격 "+pct(L.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(L.filter(x=>x.m==="c")),
+    "오늘: "+pct(t),
+    "전체: "+L.length+"문제, "+days.size+"일 · "+pct(L),
     "지금 "+lvText(),
-    "유형별(가격 듣기, 최근 300문제):"];
-  const R=L.filter(x=>x.m==="p").slice(-300),K={};
+    "유형별(최근 300문제):"];
+  const R=L.slice(-300),K={};
   R.forEach(x=>{(K[kind(x.n)]=K[kind(x.n)]||[]).push(x)});
   ["1~10","11~99","100~199","몇백(x00)","零 들어감(x0y)","세 자리"].forEach(k=>K[k]&&lines.push("- "+k+": "+pct(K[k])));
   const wrong=L.filter(x=>!x.ok).slice(-12);
-  if(wrong.length)lines.push("최근 틀린 것: "+wrong.map(x=>x.m==="c"?x.n+"元(낸 돈 "+x.p+", 받은 돈 "+x.a+", 맞는 거스름돈 "+(x.p-x.n)+", 판단 "+(x.j?"맞아요":"틀렸어요")+")":x.n+" → "+x.a).join(", "));
+  if(wrong.length)lines.push("최근 틀린 것: "+wrong.map(x=>x.n+"元에 "+x.a+"元 냄").join(", "));
   const rep=t.filter(x=>x.r).length;if(t.length)lines.push("오늘 다시 듣기 쓴 문제: "+rep+"/"+t.length);
   return lines.join("\n");
 }
@@ -305,7 +294,7 @@ $("copy").onclick=async()=>{
 };
 
 if(!S.lvSince)S.lvSince=Date.now();
-setMode(S.mode);showStats();$("lvNote").textContent="지금 "+lvText()+" (정답률에 따라 자동으로 바뀌어요)";
+showStats();$("lvNote").textContent="지금 "+lvText()+" (정답률에 따라 자동으로 바뀌어요)";
 </script>
 </body>
 </html>
