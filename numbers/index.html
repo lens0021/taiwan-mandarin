@@ -40,6 +40,9 @@ p{margin:0}.note{font-size:13px;color:var(--muted)}
 .m.c50{width:54px;height:54px;background:radial-gradient(circle at 35% 35%,#f8e08a,#c9a33a)}
 .tray{min-height:62px;padding:8px;border:1px dashed var(--line);border-radius:12px;background:var(--bg)}
 .tray:empty::before{content:attr(data-empty);color:var(--muted);font-size:13px}
+.say{border:0;background:none;padding:0;color:inherit;font:inherit;font-family:var(--f-han);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+.top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+.item{font-size:14px}
 .lbl{font-size:13px;color:var(--muted);margin-bottom:-6px}#paidBox .lbl{margin-bottom:4px}
 .res{font-weight:700}.res.ok{color:var(--good)}.res.no{color:var(--bad)}
 .ans{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--bg);cursor:pointer;border:0;color:inherit;font:inherit;text-align:left}
@@ -59,18 +62,15 @@ details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
     <button class="tab" role="tab" data-mode="p" aria-selected="true">가격 듣기</button>
     <button class="tab" role="tab" data-mode="c" aria-selected="false">거스름돈</button>
   </div>
-  <div class="chips" id="ranges">
-    <button class="chip" data-r="1-99">1~99</button>
-    <button class="chip" data-r="100-999">100~999</button>
-    <button class="chip" data-r="1-999">1~999</button>
-  </div>
 
   <section class="card" id="startCard">
-    <p>소리가 바로 나와요. 들은 만큼 돈을 골라 내세요.</p>
+    <p>한 번에 20문제예요. 소리가 바로 나와요. 들은 만큼 돈을 골라 내세요.</p>
+    <p class="note" id="lvNote"></p>
     <button class="btn main" id="start">시작</button>
   </section>
 
   <section class="card" id="quiz" hidden>
+    <div class="top"><span id="lvTxt"></span><span id="prog"></span></div>
     <div id="paidBox" hidden><p class="lbl">내가 낸 돈</p><div class="money" id="paid"></div></div>
     <button class="btn" id="play">▶ 다시 듣기</button>
     <p class="lbl" id="trayLbl">낼 돈 (누르면 빠져요)</p>
@@ -82,8 +82,17 @@ details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
     </div>
     <p class="res" id="res" hidden></p>
     <button class="ans" id="ans" hidden title="눌러서 다시 듣기"><span class="han" id="ansHan"></span><span class="zy" id="ansZy"></span><span class="note" id="ansNote"></span><span class="money" id="ansMoney"></span></button>
+    <p class="item" id="item" hidden></p>
+    <p class="note" id="lvMsg" hidden></p>
     <button class="btn main" id="next" hidden>다음 ▶</button>
     <p class="stats" id="stats"></p>
+  </section>
+
+  <section class="card" id="endCard" hidden>
+    <h2 style="margin:0;font-size:20px">오늘은 여기까지!</h2>
+    <p id="endTxt"></p>
+    <p class="note">'기록 복사'를 눌러 채팅에 붙여 주시면 봐 드릴게요. 더 하고 싶으면 한 번 더 해도 돼요.</p>
+    <button class="btn" id="again">20문제 한 번 더</button>
   </section>
 
   <section class="card">
@@ -92,10 +101,11 @@ details{font-size:14px}details p{margin:6px 0;color:var(--muted)}
     <textarea id="copyBox" readonly hidden></textarea>
     <details>
       <summary>숫자 읽는 규칙</summary>
-      <p>2는 혼자 쓰이거나 百 앞에서 兩(ㄌㄧㄤˇ)으로 말해요: 兩塊(2), 兩百(200). 끝자리 2는 二(ㄦˋ)예요: 十二塊(12).</p>
-      <p>가운데 자리가 0이면 零(ㄌㄧㄥˊ)을 넣어요: 一百零五塊(105).</p>
-      <p>100~199의 십 자리 1은 一十로 말해요: 一百一十五塊(115). 10~19는 그냥 十로 시작해요: 十五塊(15).</p>
-      <p>塊(ㄎㄨㄞˋ)는 말로 하는 '원'이에요. 가격표에는 元으로 적혀 있어요.</p>
+      <p>2는 혼자 쓰이거나 百 앞에서 <button class="say" data-w="兩">兩</button>(ㄌㄧㄤˇ)으로 말해요: <button class="say" data-n="2">兩塊</button>(2), <button class="say" data-n="200">兩百塊</button>(200). 끝자리 2는 <button class="say" data-w="二">二</button>(ㄦˋ)예요: <button class="say" data-n="12">十二塊</button>(12).</p>
+      <p>가운데 자리가 0이면 <button class="say" data-w="零">零</button>(ㄌㄧㄥˊ)을 넣어요: <button class="say" data-n="105">一百零五塊</button>(105).</p>
+      <p>100~199의 십 자리 1은 一十로 말해요: <button class="say" data-n="115">一百一十五塊</button>(115). 10~19는 그냥 十로 시작해요: <button class="say" data-n="15">十五塊</button>(15).</p>
+      <p><button class="say" data-w="塊">塊</button>(ㄎㄨㄞˋ)는 말로 하는 '원'이에요. 가격표에는 <button class="say" data-w="元">元</button>(ㄩㄢˊ)으로 적혀 있어요.</p>
+      <p>밑줄 친 중국어는 누르면 들려요.</p>
       <p>음성은 Amazon Polly의 표준 중국어 음성이라 대만 억양과 조금 달라요.</p>
     </details>
   </section>
@@ -136,16 +146,28 @@ function sprite(i){
   return sprites[i]||(sprites[i]=fetch("audio/"+i+".mp3").then(r=>r.arrayBuffer()).then(b=>ctx.decodeAudioData(b)).catch(e=>{delete sprites[i];throw e}));
 }
 let playing=null;
-async function say(n){
+async function say(n,c){
   ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
   if(ctx.state==="suspended")ctx.resume();
-  const c=NUM_CLIPS[n];if(!c)return;
+  c=c||NUM_CLIPS[n];if(!c)return;
   try{
     const buf=await sprite(c[0]);
     if(playing)try{playing.stop()}catch(e){}
     const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start(0,c[1],c[2]);playing=src;
   }catch(e){$("res").hidden=false;$("res").className="res no";$("res").textContent="음성을 불러오지 못했어요. 인터넷 연결을 확인해 주세요."}
 }
+
+const sayW=w=>say(0,WORD_CLIPS[w]);
+document.querySelectorAll(".say").forEach(b=>b.onclick=()=>b.dataset.n?say(+b.dataset.n):sayW(b.dataset.w));
+
+/* ---------- a typical Taiwan item near the price (rough 2026 prices) ---------- */
+const ITEMS=[["塑膠袋","ㄙㄨˋ ㄐㄧㄠ ㄉㄞˋ","비닐봉지",2],["茶葉蛋","ㄔㄚˊ ㄧㄝˋ ㄉㄢˋ","찻잎 삶은 달걀",13],["公車","ㄍㄨㄥ ㄔㄜ","버스 한 번",15],
+ ["礦泉水","ㄎㄨㄤˋ ㄑㄩㄢˊ ㄕㄨㄟˇ","생수",20],["豆漿","ㄉㄡˋ ㄐㄧㄤ","두유",25],["捷運","ㄐㄧㄝˊ ㄩㄣˋ","MRT 한 번",30],["滷肉飯","ㄌㄨˇ ㄖㄡˋ ㄈㄢˋ","루러우판",40],
+ ["咖啡","ㄎㄚ ㄈㄟ","편의점 커피",50],["珍珠奶茶","ㄓㄣ ㄓㄨ ㄋㄞˇ ㄔㄚˊ","버블티",60],["臭豆腐","ㄔㄡˋ ㄉㄡˋ ㄈㄨˇ","취두부",70],["雞排","ㄐㄧ ㄆㄞˊ","지파이(닭튀김)",90],
+ ["便當","ㄅㄧㄢˋ ㄉㄤ","도시락",110],["芒果冰","ㄇㄤˊ ㄍㄨㄛˇ ㄅㄧㄥ","망고빙수",160],["牛肉麵","ㄋㄧㄡˊ ㄖㄡˋ ㄇㄧㄢˋ","우육면",200],["小籠包","ㄒㄧㄠˇ ㄌㄨㄥˊ ㄅㄠ","샤오롱바오 한 판",260],
+ ["電影票","ㄉㄧㄢˋ ㄧㄥˇ ㄆㄧㄠˋ","영화표",300],["鳳梨酥","ㄈㄥˋ ㄌㄧˊ ㄙㄨ","펑리수 한 상자",400],["火鍋","ㄏㄨㄛˇ ㄍㄨㄛ","훠궈 1인분",500],
+ ["腳底按摩","ㄐㄧㄠˇ ㄉㄧˇ ㄢˋ ㄇㄛˊ","발 마사지",700],["烏龍茶","ㄨ ㄌㄨㄥˊ ㄔㄚˊ","우롱 찻잎 한 통",900]];
+function nearItem(n){let b=ITEMS[0];for(const it of ITEMS)if(Math.abs(Math.log(it[3]/n))<Math.abs(Math.log(b[3]/n)))b=it;return b}
 
 /* ---------- money ---------- */
 const DENOM=[1000,500,100,50,10,5,1];
@@ -163,25 +185,38 @@ DENOM.forEach(v=>$("wallet").append(money(v,()=>{if(answered)return;tray.push(v)
 $("clear").onclick=()=>{if(!answered){tray=[];drawTray()}};
 
 /* ---------- state ---------- */
-let S=store.get("tm-numbers",{mode:"p",range:"1-999",log:[]});
-let q=null,answered=false,miss=[],count=0;
+let S=store.get("tm-numbers",{mode:"p",log:[]});if(S.level==null)S.level=0;delete S.range;
+let q=null,answered=false,miss=[],count=0,done=0,right=0;
+const SESSION=20;
 const save=()=>store.set("tm-numbers",S);
 
-function setMode(m){S.mode=m;save();document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.mode===m));if(!$("quiz").hidden)newQ()}
-function setRange(r){S.range=r;save();miss=[];document.querySelectorAll("#ranges .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.r===r));if(!$("quiz").hidden)newQ()}
+// Range picks itself: 9 of the last 10 right at a level moves up, 3 or fewer of the last 6 moves down.
+const LEVELS=[{name:"1~10",lo:1,hi:10},{name:"1~99",lo:1,hi:99},{name:"몇백·몇십 (100~990)",lo:10,hi:99,x:10},{name:"100~999",lo:100,hi:999},{name:"1~999",lo:1,hi:999}];
+function lvText(){return "단계 "+(S.level+1)+"/"+LEVELS.length+" · "+LEVELS[S.level].name}
+function adjustLevel(){
+  const at=S.log.filter(x=>x.lv===S.level&&x.s===S.lvSince),ok=a=>a.filter(x=>x.ok).length;
+  const l10=at.slice(-10),l6=at.slice(-6);
+  if(l10.length===10&&ok(l10)>=9&&S.level<LEVELS.length-1){S.level++;S.lvSince=Date.now();miss=[];return "잘하고 있어요! 다음 단계로 올라가요: "+LEVELS[S.level].name}
+  if(l6.length===6&&ok(l6)<=3&&S.level>0){S.level--;S.lvSince=Date.now();miss=[];return "조금 어려워 보여서 한 단계 내려가요: "+LEVELS[S.level].name}
+  return "";
+}
+
+function setMode(m){S.mode=m;save();document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.mode===m));if(!$("quiz").hidden&&!answered)newQ()}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-document.querySelectorAll("#ranges .chip").forEach(b=>b.onclick=()=>setRange(b.dataset.r));
 
 function pick(){
-  const [lo,hi]=S.range.split("-").map(Number);
+  const L=LEVELS[S.level];
   // Missed prices come back every third question.
   count++;
   if(miss.length&&count%3===0)return miss.shift();
-  let n;do{n=lo+Math.floor(Math.random()*(hi-lo+1))}while(q&&n===q.n&&hi>lo);
+  let n;do{n=(L.lo+Math.floor(Math.random()*(L.hi-L.lo+1)))*(L.x||1)}while(q&&n===q.n);
   return n;
 }
 function newQ(){
+  if(done>=SESSION){finish();return}
   const n=pick();
+  $("lvTxt").textContent=lvText();$("prog").textContent=(done+1)+" / "+SESSION;
+  $("item").hidden=$("lvMsg").hidden=true;
   // In change mode you hand over the smallest bill that covers the price.
   const paid=S.mode==="c"?(n<100?100:n<500?500:1000):0;
   q={n,paid,mode:S.mode,replays:0};answered=false;
@@ -197,8 +232,14 @@ function check(){
   if(!tray.length)return;
   const v=tray.reduce((a,b)=>a+b,0),want=q.mode==="c"?q.paid-q.n:q.n,ok=v===want;answered=true;drawTray();
   if(!ok&&!miss.includes(q.n))miss.push(q.n);
-  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,ok:ok?1:0,r:q.replays||undefined});
-  if(S.log.length>2000)S.log=S.log.slice(-2000);save();
+  S.log.push({d:today(),m:q.mode,n:q.n,p:q.paid||undefined,a:+v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
+  if(S.log.length>2000)S.log=S.log.slice(-2000);
+  done++;if(ok)right++;
+  const msg=adjustLevel();save();
+  $("lvMsg").hidden=!msg;$("lvMsg").textContent=msg;
+  const it=nearItem(q.n);$("item").hidden=false;$("item").innerHTML="";
+  const b=document.createElement("button");b.className="say";b.textContent=it[0];b.onclick=()=>sayW(it[0]);
+  $("item").append("이 정도 가격: ",b," "+it[1]+" "+it[2]+" 약 "+it[3]+"元");
   $("res").hidden=false;$("res").className="res "+(ok?"ok":"no");
   // Digits appear only now, after the answer.
   $("res").textContent=ok?"정답! "+want+"元":"아쉬워요. 담은 돈 "+v+"元, 정답 "+want+"元";
@@ -206,9 +247,15 @@ function check(){
   $("ansNote").textContent=q.mode==="c"?"가격 "+q.n+"元 · 거스름돈 "+q.paid+" − "+q.n+" = "+(q.paid-q.n)+"元 · 눌러서 다시 듣기":q.n+"元 · 눌러서 다시 듣기";
   $("ansMoney").innerHTML="";if(!ok)fewest(want).forEach(x=>$("ansMoney").append(money(x)));
   $("ans").hidden=false;$("check").hidden=$("clear").hidden=true;$("next").hidden=false;$("next").focus();
+  $("next").textContent=done>=SESSION?"결과 보기 ▶":"다음 ▶";
   showStats();
 }
-$("start").onclick=()=>{$("startCard").hidden=true;$("quiz").hidden=false;newQ()};
+function startSession(){done=right=0;miss=[];$("startCard").hidden=$("endCard").hidden=true;$("quiz").hidden=false;newQ()}
+function finish(){
+  $("quiz").hidden=true;$("endCard").hidden=false;
+  $("endTxt").textContent=SESSION+"문제 중 "+right+"개 맞혔어요. 지금 "+lvText()+".";
+}
+$("start").onclick=startSession;$("again").onclick=startSession;
 $("play").onclick=()=>{if(q){q.replays++;say(q.n)}};
 $("ans").onclick=()=>q&&say(q.n);
 $("check").onclick=check;$("next").onclick=newQ;
@@ -225,6 +272,7 @@ function summary(){
   const lines=["[가격 듣기 기록] "+today(),
     "오늘: 가격 "+pct(t.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(t.filter(x=>x.m==="c")),
     "전체: "+L.length+"문제, "+days.size+"일 · 가격 "+pct(L.filter(x=>x.m==="p"))+" · 거스름돈 "+pct(L.filter(x=>x.m==="c")),
+    "지금 "+lvText(),
     "유형별(가격 듣기, 최근 300문제):"];
   const R=L.filter(x=>x.m==="p").slice(-300),K={};
   R.forEach(x=>{(K[kind(x.n)]=K[kind(x.n)]||[]).push(x)});
@@ -241,7 +289,8 @@ $("copy").onclick=async()=>{
   try{await navigator.clipboard.writeText(s);$("copyMsg").textContent="복사했어요. 채팅에 붙여 넣어 주세요."}catch(e){}
 };
 
-setMode(S.mode);setRange(S.range);showStats();
+if(!S.lvSince)S.lvSince=Date.now();
+setMode(S.mode);showStats();$("lvNote").textContent="지금 "+lvText()+" (정답률에 따라 자동으로 바뀌어요)";
 </script>
 </body>
 </html>
