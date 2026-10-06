@@ -125,6 +125,9 @@ textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg
   <div class="row" id="nav">
     <button class="btn" id="prev" disabled>← 이전</button>
     <button class="btn main" id="next">다음 단계 →</button>
+    <button class="btn" id="copyNow" style="grid-column:1/-1;padding:9px">기록 복사 (지금까지 한 것)</button>
+    <p class="note" id="copyNowMsg" style="grid-column:1/-1" hidden></p>
+    <textarea id="copyNowBox" style="grid-column:1/-1" readonly hidden></textarea>
   </div>
 
   <!-- Wrap-up -->
@@ -291,11 +294,13 @@ function finish(){
   const tot=Math.round(d.sec.reduce((a,b)=>a+b,0)/60);
   $("doneMsg").textContent=tot>=10?`오늘 ${tot}분 했어요. 내일도 같은 순서로 해요.`:`오늘은 ${tot}분 했어요. 10~15분이 목표예요. 짧아도 매일 하는 게 더 중요해요.`;
 }
-$("copy").onclick=async()=>{
-  const txt=summary(),box=$("copyBox"),msg=$("copyMsg");msg.hidden=false;
+async function copyTo(box,msg){
+  const txt=summary();msg.hidden=false;
   try{await navigator.clipboard.writeText(txt);msg.textContent="복사했어요. Claude 채팅에 붙여 넣어 주세요.";box.hidden=true}
   catch(e){box.hidden=false;box.value=txt;box.focus();box.select();msg.textContent="자동 복사가 안 돼서 아래에 띄웠어요. 길게 눌러 복사해 주세요."}
-};
+}
+$("copy").onclick=()=>copyTo($("copyBox"),$("copyMsg"));
+$("copyNow").onclick=()=>copyTo($("copyNowBox"),$("copyNowMsg"));
 
 renderPairs();renderAnswers();renderScore();go(1);
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{}));
