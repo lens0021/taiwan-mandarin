@@ -181,6 +181,11 @@ const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let mode=1,cur=SINGLES[0],last=null;
 let prefs=store.get("tm-prefs",{preset:null,hist:[]});
+// 1st-tone height is also kept under its own key, so a stale copy of prefs written by another open page
+// (a /tone/ tab next to the routine's embedded copy) can't wipe it.
+if(!prefs.t1&&store.get("tm-t1",null))prefs.t1=store.get("tm-t1",null);else if(prefs.t1&&!store.get("tm-t1",null))store.set("tm-t1",prefs.t1);
+function savePrefs(change){const p=store.get("tm-prefs",{preset:null,hist:[]});change(p);
+  const t1=p.t1||store.get("tm-t1",null);if(t1)p.t1=t1;prefs=p;store.set("tm-prefs",p)}
 let stats=store.get("tm-stats",{1:[0,0],2:[0,0],3:[0,0],4:[0,0]});if(!stats.items)stats.items={};if(!stats.since)stats.since=new Date().toISOString().slice(0,10);
 const PRESET={low:[85,175],high:[165,330]};
 const st=f=>12*Math.log2(f/100);
@@ -225,7 +230,7 @@ function renderRange(){
   if(prefs.t1)$("t1In").value=noteName(prefs.t1)+" ("+Math.round(prefs.t1)+"Hz)";
   const [lo,hi]=range();$("rangeTxt").textContent=Math.round(100*2**(lo/12))+"–"+Math.round(100*2**(hi/12))+" Hz";
 }
-function setT1(f,how){prefs.t1=f;store.set("tm-prefs",prefs);renderRange();if(last)analyzeShow(last);
+function setT1(f,how){store.set("tm-t1",f);savePrefs(p=>{p.t1=f});renderRange();if(last)analyzeShow(last);
   $("t1Msg").textContent=`1성 높이를 ${noteName(f)} (${Math.round(f)} Hz)로 정했어요${how||""}. 이제 이 높이를 1성으로, 9반음 아래를 가장 낮은 소리로 보고 판정해요.`}
 $("t1Set").onclick=()=>{const v=$("t1In").value.replace(/\(.*\)/,"");const f=parsePitch(v);
   if(!f){$("t1Msg").textContent="음 이름(예: C#3, Bb2)이나 50~600 사이의 Hz 숫자로 적어 주세요.";return}setT1(f)};
@@ -362,8 +367,8 @@ function classify(c){
 function learnRange(segsSt){
   const all=segsSt.flat().sort((a,b)=>a-b);if(all.length<10)return;
   const p=q=>all[Math.floor(q*(all.length-1))];
-  if(!prefs.preset){const medHz=100*2**(p(.5)/12);prefs.preset=medHz>165?"high":"low"}
-  prefs.hist.push([p(.05),p(.95)]);if(prefs.hist.length>12)prefs.hist.shift();store.set("tm-prefs",prefs);
+  savePrefs(q=>{if(!q.preset){const medHz=100*2**(p(.5)/12);q.preset=medHz>165?"high":"low"}
+    q.hist.push([p(.05),p(.95)]);if(q.hist.length>12)q.hist.shift()});
 }
 function analyze(samples,sr){
   const tr=pitchTrack(samples,sr);
@@ -512,6 +517,9 @@ $("vF").onclick=()=>{voice="f";store.set("tm-voice",voice);renderVoice()};
 renderVoice();
 $("showPy").checked=store.get("tm-py",false);$("py").hidden=!$("showPy").checked;
 $("showPy").onchange=e=>{store.set("tm-py",e.target.checked);$("py").hidden=!e.target.checked};
+addEventListener("storage",e=>{
+  if(e.key==="tm-prefs"||e.key==="tm-t1"){prefs=store.get("tm-prefs",{preset:null,hist:[]});if(!prefs.t1)prefs.t1=store.get("tm-t1",null)||undefined;renderRange()}
+  if(e.key==="tm-stats"&&e.newValue){try{stats=JSON.parse(e.newValue);renderStats()}catch(x){}}});
 $("autoNext").checked=store.get("tm-autonext",true);$("autoNext").onchange=e=>store.set("tm-autonext",e.target.checked);
 $("play").onclick=async()=>{
   const it=cur,v=voice;if(!VOICES[v].audio[it.h])return;
