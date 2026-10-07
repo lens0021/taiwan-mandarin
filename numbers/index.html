@@ -253,6 +253,8 @@ function check(){
   S.log.push({d:today(),n:q.n,a:v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
   if(S.log.length>2000)S.log=S.log.slice(-2000);
   done++;if(ok)right++;
+  // Keep the running session so a refresh picks it up where it was.
+  S.sess={d:today(),done,right,miss};
   const msg=adjustLevel();save();
   $("lvMsg").hidden=!msg;$("lvMsg").textContent=msg;
   const it=nearItem(q.n);$("item").hidden=false;$("item").innerHTML="";
@@ -269,12 +271,14 @@ function check(){
   $("next").textContent=done>=SESSION?"결과 보기 ▶":"다음 ▶";
   showStats();
 }
-function startSession(){done=right=0;miss=[];$("startCard").hidden=$("endCard").hidden=true;$("quiz").hidden=false;newQ()}
+function startSession(){
+  const r=S.sess&&S.sess.d===today()&&S.sess.done<SESSION?S.sess:null;
+  done=r?r.done:0;right=r?r.right:0;miss=r?r.miss.slice():[];$("start").textContent="시작";$("startCard").hidden=$("endCard").hidden=true;$("quiz").hidden=false;newQ()}
 function finish(){
-  $("quiz").hidden=true;$("endCard").hidden=false;
+  $("quiz").hidden=true;$("endCard").hidden=false;S.sess=null;save();
   $("endTxt").textContent=SESSION+"문제 중 "+right+"개 맞혔어요. 지금 "+lvText()+".";
 }
-$("start").onclick=startSession;$("again").onclick=startSession;
+$("start").onclick=startSession;$("again").onclick=()=>{S.sess=null;startSession()};
 $("play").onclick=()=>{if(q){q.replays++;say(q.n)}};
 $("ans").onclick=()=>q&&say(q.n);
 $("check").onclick=check;$("next").onclick=newQ;
@@ -309,6 +313,7 @@ $("copy").onclick=async()=>{
 };
 
 if(!S.lvSince)S.lvSince=Date.now();
+if(S.sess&&S.sess.d===today()&&S.sess.done<SESSION)$("start").textContent="이어서 하기 ("+S.sess.done+" / "+SESSION+")";
 showStats();$("lvNote").textContent="지금 "+lvText()+" (정답률에 따라 자동으로 바뀌어요)";
 </script>
 </body>
