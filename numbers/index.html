@@ -150,6 +150,17 @@ async function say(n,c){
 }
 
 const sayW=w=>say(0,WORD_CLIPS[w]);
+// Answer feedback tones: a rising two-note chime when right, a short low buzz when wrong.
+function beep(ok){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+  if(ctx.state==="suspended")ctx.resume();
+  const t0=ctx.currentTime;
+  (ok?[[880,0,.12],[1319,.1,.22]]:[[150,0,.32]]).forEach(([f,at,len])=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type=ok?"sine":"square";o.frequency.value=f;
+    g.gain.setValueAtTime(0,t0+at);g.gain.linearRampToValueAtTime(ok?.25:.08,t0+at+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+at+len);
+    o.connect(g);g.connect(ctx.destination);o.start(t0+at);o.stop(t0+at+len+.02);
+  });
+}
 document.querySelectorAll(".say").forEach(b=>b.onclick=()=>b.dataset.n?say(+b.dataset.n):sayW(b.dataset.w));
 
 /* ---------- a typical Taiwan item near the price (rough 2026 prices) ---------- */
@@ -237,7 +248,7 @@ function check(){
   // Right = covers the price and every piece earns its place: taking any one back would leave you with more pieces
   // after change (so 105 for 95 to get a 10 back is right, 110 for 95 is not).
   const v=tray.reduce((a,b)=>a+b,0),short=v<q.n,W=tray.length+wallet.length,cost=short?0:after(tray,q.n,W);
-  const extra=!short&&tray.find((x,i)=>v-x>=q.n&&after(tray.filter((_,j)=>j!==i),q.n,W)<=cost),ok=!short&&!extra;answered=true;drawTray();
+  const extra=!short&&tray.find((x,i)=>v-x>=q.n&&after(tray.filter((_,j)=>j!==i),q.n,W)<=cost),ok=!short&&!extra;answered=true;drawTray();beep(ok);
   if(!ok&&!miss.includes(q.n))miss.push(q.n);
   S.log.push({d:today(),n:q.n,a:v,ok:ok?1:0,r:q.replays||undefined,lv:S.level,s:S.lvSince});
   if(S.log.length>2000)S.log=S.log.slice(-2000);
