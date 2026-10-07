@@ -278,11 +278,13 @@ function setupFrame(){
 
 /* ---------- step navigation and timer ---------- */
 let tick=0;
+// Step timers count this visit only; the daily log (d.sec) keeps summing every visit of the day.
+const sess=[0,0,0];
 function go(s){
   step=s;const d=day();
   if(s>1&&!d.speak0)d.speak0=stats()||{1:[0,0],2:[0,0],3:[0,0],4:[0,0],items:{}};
   save();
-  document.querySelectorAll(".step").forEach(b=>{const n=+b.dataset.s;b.toggleAttribute("aria-current",false);if(n===s)b.setAttribute("aria-current","step");b.classList.toggle("done",d.sec[n-1]>=STEP_SEC)});
+  document.querySelectorAll(".step").forEach(b=>{const n=+b.dataset.s;b.toggleAttribute("aria-current",false);if(n===s)b.setAttribute("aria-current","step");b.classList.toggle("done",sess[n-1]>=STEP_SEC)});
   $("s1").hidden=s!==1;$("s2").hidden=s!==2;$("s3").hidden=s!==3;$("frameCard").hidden=s===1||s===4;
   $("done").hidden=s!==4;$("timerRow").hidden=s===4;$("nav").hidden=s===4;
   $("prev").disabled=s===1;$("next").textContent=s===3?"오늘 루틴 마치기 ✓":"다음 단계 →";
@@ -293,7 +295,7 @@ function go(s){
   renderTimer();window.scrollTo({top:0});
 }
 function renderTimer(){
-  if(step>3)return;const sec=day().sec[step-1],m=Math.floor(sec/60),r=sec%60;
+  if(step>3)return;const sec=sess[step-1],m=Math.floor(sec/60),r=sec%60;
   $("timer").textContent=`${m}:${String(r).padStart(2,"0")} / 5:00`;$("timerBar").style.width=Math.min(100,100*sec/STEP_SEC)+"%";
   const up=sec>=STEP_SEC;$("timeUp").hidden=!up;document.body.classList.toggle("timeup",up);
   // Buzz once when a step first reaches 5 minutes, so it is noticed mid-exercise.
@@ -301,7 +303,11 @@ function renderTimer(){
   if(up){$("timeUp").textContent=step<3?`5분 끝! ${["","② 말하기","③ 단어"][step]}로 넘어가기 →`:"5분 끝! 오늘 루틴 마치기 ✓";document.querySelector(`.step[data-s="${step}"]`).classList.add("done")}
 }
 // Count time only while the page is visible, so leaving the tab open doesn't inflate the log.
-setInterval(()=>{if(document.hidden||step>3)return;const d=day();d.sec[step-1]++;if(d.sec[step-1]%10===0)save();renderTimer()},1000);
+setInterval(()=>{if(document.hidden||step>3)return;const d=day();d.sec[step-1]++;sess[step-1]++;if(d.sec[step-1]%10===0)save();renderTimer()},1000);
+// A phone may resume the old page instead of reloading it; after a long break, start a fresh visit.
+let hiddenAt=0;
+document.addEventListener("visibilitychange",()=>{if(document.hidden){hiddenAt=Date.now();return}
+  if(hiddenAt&&Date.now()-hiddenAt>30*60e3){sess.fill(0);go(1)}});
 document.querySelectorAll(".step").forEach(b=>b.onclick=()=>go(+b.dataset.s));
 $("timeUp").onclick=()=>go(step+1);
 $("prev").onclick=()=>go(Math.max(1,step-1));
