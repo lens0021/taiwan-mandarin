@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "inspect | dump (index + sample wavs to branch moe-scratch) | extract"
+        description: "inspect | dump (index CSV + wavs for chars, to branch moe-scratch)"
         default: inspect
       chars:
         description: "dump: characters whose wavs to copy"
@@ -57,11 +57,3 @@ jobs:
           git config user.name "github-actions[bot]"; git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
           git add -A && git commit -qm scratch
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" moe-scratch
-      - name: Extract
-        if: inputs.mode == 'extract'
-        run: |
-          python3 tools/moe_audio.py /tmp/moe
-          git config user.name "github-actions[bot]"
-          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
-          git add -A routine
-          git commit -m "routine: Taiwan MOE native-speaker clips" && git push || echo "nothing to commit"

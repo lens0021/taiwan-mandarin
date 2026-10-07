@@ -104,6 +104,7 @@ body.timeup .wrap{padding-bottom:96px}
   <section class="card" id="s1">
     <h2>① 짝 듣기</h2>
     <p class="note">소리를 듣고 몇 성인지 골라요. ‘자동’이면 최근 2주 기록에서 많이 헷갈린 짝을 골라 8문제씩 내요. 직접 고르고 싶으면 짝을 눌러요. 3분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
+    <p class="note">소리는 대만 교육부 《國語辭典簡編本》 녹음이에요. 진짜 대만 사람 목소리예요. (CC BY-ND 3.0 TW)</p>
     <div class="chips" id="pairs" aria-label="성조 짝"></div>
     <div class="fb" id="fb"><span class="note">아래 ‘시작’을 누르면 소리가 나와요.</span></div>
     <div class="answers" id="answers"></div>
@@ -246,7 +247,7 @@ async function ask(){
   // Pick the tone first so each tone comes up equally often, then a syllable and a voice at random.
   const want=p[Math.floor(Math.random()*p.length)],cand=pool.filter(s=>s.t[0]===want);
   const it=(cand.length?cand:pool)[Math.floor(Math.random()*(cand.length?cand:pool).length)];
-  q={it,v:Math.random()<0.6?"m":"f",answered:false};lastH=it.h;
+  q={it,v:window.ROUTINE_CLIPS&&ROUTINE_CLIPS.tw?"tw":Math.random()<0.6?"m":"f",answered:false};lastH=it.h;
   renderAnswers();$("fb").innerHTML='<span class="note">몇 성일까요?</span>';$("again").disabled=false;
   try{await play(q.v,it.h)}catch(e){$("fb").innerHTML='<span class="no-t">소리를 재생하지 못했어요. 소리 설정을 확인해 보세요.</span>'}
 }
