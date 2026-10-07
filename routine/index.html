@@ -72,6 +72,9 @@ textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg
 @keyframes nudge{50%{transform:translateX(-50%) scale(1.03)}}
 body.timeup .wrap{padding-bottom:96px}
 @media (prefers-reduced-motion:reduce){#timeUp{animation:none}}
+.gtab{display:grid;grid-template-columns:auto repeat(4,1fr);gap:4px 8px;font-size:12px;color:var(--muted);align-items:center}
+.gtab b{font-family:var(--f-mono);font-size:12px;color:var(--ink);font-weight:500}
+.gtab .ok{color:var(--good);font-weight:700}
 .sum{font-family:var(--f-mono);font-size:13px;white-space:pre-wrap;margin:0;background:var(--bg);border-radius:10px;padding:10px}
 </style>
 </head>
@@ -79,8 +82,14 @@ body.timeup .wrap{padding-bottom:96px}
 <div class="wrap">
   <header>
     <h1>오늘의 성조 루틴</h1>
-    <p>듣기 5분 → 말하기 5분 → 두 글자 단어 5분. 위에서부터 순서대로 하면 돼요. <a href="../">← 도구 목록</a></p>
+    <p id="lead">듣기 3분 → 말하기 3분 → 두 글자 단어 3분. 위에서부터 순서대로 하면 돼요. <a href="../">← 도구 목록</a></p>
   </header>
+
+  <section class="card" id="grad">
+    <div class="res" style="display:flex;justify-content:space-between;align-items:baseline"><b id="gradTitle">졸업까지</b><span class="note" id="gradDays"></span></div>
+    <p class="note" id="gradRule">듣기는 1~4성 모두 90% 이상(성조마다 10문제 이상), 말하기는 1~4성 모두 80% 이상(성조마다 5번 이상)인 날이 3일 모이면 졸업이에요. 졸업하면 며칠에 한 번 3분 듣기만 하면 돼요.</p>
+    <div class="gtab" id="gradToday"></div>
+  </section>
 
   <nav class="steps" aria-label="단계">
     <button class="step" data-s="1" aria-current="step"><b>① 듣기</b>성조 짝 구분</button>
@@ -88,13 +97,13 @@ body.timeup .wrap{padding-bottom:96px}
     <button class="step" data-s="3"><b>③ 단어</b>두 음절</button>
   </nav>
 
-  <div class="timer" id="timerRow"><span id="timerLbl">① 듣기</span><div class="bar"><span id="timerBar"></span></div><b id="timer">0:00 / 5:00</b></div>
+  <div class="timer" id="timerRow"><span id="timerLbl">① 듣기</span><div class="bar"><span id="timerBar"></span></div><b id="timer">0:00 / 3:00</b></div>
   <button class="btn main" id="timeUp" hidden></button>
 
   <!-- Step 1: tone-pair listening quiz -->
   <section class="card" id="s1">
     <h2>① 짝 듣기</h2>
-    <p class="note">소리를 듣고 몇 성인지 골라요. ‘자동’이면 최근 2주 기록에서 많이 헷갈린 짝을 골라 8문제씩 내요. 직접 고르고 싶으면 짝을 눌러요. 5분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
+    <p class="note">소리를 듣고 몇 성인지 골라요. ‘자동’이면 최근 2주 기록에서 많이 헷갈린 짝을 골라 8문제씩 내요. 직접 고르고 싶으면 짝을 눌러요. 3분이 지나면 화면 아래에 ‘다음 단계로’ 버튼이 떠요.</p>
     <div class="chips" id="pairs" aria-label="성조 짝"></div>
     <div class="fb" id="fb"><span class="note">아래 ‘시작’을 누르면 소리가 나와요.</span></div>
     <div class="answers" id="answers"></div>
@@ -154,7 +163,7 @@ body.timeup .wrap{padding-bottom:96px}
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-const STEP_SEC=300;
+const STEP_SEC=180,STEP_TXT="3:00";
 
 /* ---------- daily log: one entry per day, kept in localStorage ---------- */
 let log=store.get("tm-routine",{days:{}});
@@ -296,11 +305,11 @@ function go(s){
 }
 function renderTimer(){
   if(step>3)return;const sec=sess[step-1],m=Math.floor(sec/60),r=sec%60;
-  $("timer").textContent=`${m}:${String(r).padStart(2,"0")} / 5:00`;$("timerBar").style.width=Math.min(100,100*sec/STEP_SEC)+"%";
+  $("timer").textContent=`${m}:${String(r).padStart(2,"0")} / ${STEP_TXT}`;$("timerBar").style.width=Math.min(100,100*sec/STEP_SEC)+"%";
   const up=sec>=STEP_SEC;$("timeUp").hidden=!up;document.body.classList.toggle("timeup",up);
-  // Buzz once when a step first reaches 5 minutes, so it is noticed mid-exercise.
+  // Buzz once when a step first reaches its time, so it is noticed mid-exercise.
   if(sec===STEP_SEC)try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}
-  if(up){$("timeUp").textContent=step<3?`5분 끝! ${["","② 말하기","③ 단어"][step]}로 넘어가기 →`:"5분 끝! 오늘 루틴 마치기 ✓";document.querySelector(`.step[data-s="${step}"]`).classList.add("done")}
+  if(up){$("timeUp").textContent=step<3&&!maint()?`3분 끝! ${["","② 말하기","③ 단어"][step]}로 넘어가기 →`:"3분 끝! 오늘은 여기까지 ✓";document.querySelector(`.step[data-s="${step}"]`).classList.add("done")}
 }
 // Count time only while the page is visible, so leaving the tab open doesn't inflate the log.
 setInterval(()=>{if(document.hidden||step>3)return;const d=day();d.sec[step-1]++;sess[step-1]++;if(d.sec[step-1]%10===0)save();renderTimer()},1000);
@@ -309,7 +318,7 @@ let hiddenAt=0;
 document.addEventListener("visibilitychange",()=>{if(document.hidden){hiddenAt=Date.now();return}
   if(hiddenAt&&Date.now()-hiddenAt>30*60e3){sess.fill(0);go(1)}});
 document.querySelectorAll(".step").forEach(b=>b.onclick=()=>go(+b.dataset.s));
-$("timeUp").onclick=()=>go(step+1);
+$("timeUp").onclick=()=>go(maint()&&step===1?4:step+1);
 $("prev").onclick=()=>go(Math.max(1,step-1));
 $("next").onclick=()=>go(step+1);
 $("restart").onclick=()=>go(1);
@@ -330,15 +339,16 @@ function summary(){
     const byW={};words.forEach(([k,ok,n])=>{const w=k.split("#")[0];byW[w]=byW[w]||[0,0];byW[w][0]+=ok;byW[w][1]+=n});
     if(Object.keys(byW).length)L.push("두 음절(음절별 정답/시도): "+Object.entries(byW).map(([w,c])=>`${w} ${c[0]}/${c[1]}`).join(", "));
   }
-  const last7=Object.entries(log.days).filter(([k])=>(new Date(today())-new Date(k))/864e5<7).filter(([,v])=>v.sec.reduce((a,b)=>a+b,0)>=300).length;
+  const last7=Object.entries(log.days).filter(([k])=>(new Date(today())-new Date(k))/864e5<7).filter(([,v])=>v.sec.reduce((a,b)=>a+b,0)>=STEP_SEC).length;
   L.push(`최근 7일 중 ${last7}일 연습`);
+  const g=gradState();L.push(log.grad?`졸업함 (${log.grad}), 유지 모드`:`졸업 합격한 날 ${g.days}/3${g.today.pass?" (오늘 합격)":""}`);
   return L.join("\n");
 }
 function finish(){
   const d=day();d.done=true;save();
   $("sum").textContent=summary();
   const tot=Math.round(d.sec.reduce((a,b)=>a+b,0)/60);
-  $("doneMsg").textContent=tot>=10?`오늘 ${tot}분 했어요. 내일도 같은 순서로 해요.`:`오늘은 ${tot}분 했어요. 10~15분이 목표예요. 짧아도 매일 하는 게 더 중요해요.`;
+  $("doneMsg").textContent=maint()?`오늘 ${tot}분 했어요. 며칠 뒤에 또 3분만 들어요.`:tot>=8?`오늘 ${tot}분 했어요. 내일도 같은 순서로 해요.`:`오늘은 ${tot}분 했어요. 9분 정도가 목표예요. 짧아도 매일 하는 게 더 중요해요.`;
 }
 async function copyTo(box,msg){
   const txt=summary();msg.hidden=false;
@@ -348,7 +358,42 @@ async function copyTo(box,msg){
 $("copy").onclick=()=>copyTo($("copyBox"),$("copyMsg"));
 $("copyNow").onclick=()=>copyTo($("copyNowBox"),$("copyNowMsg"));
 
-renderPairs();renderAnswers();renderScore();go(1);
+/* ---------- graduation ---------- */
+// A day passes when listening is >=90% for every tone (>=10 answers each) and speaking is >=80% for every tone
+// (>=5 tries each, counted from the 성조 거울 stats since the day's first visit to step 2). Three passing days graduate.
+const G_LISTEN=0.9,G_LN=10,G_SPEAK=0.8,G_SN=5,G_DAYS=3;
+function todayScores(){
+  const d=day(),L={1:[0,0],2:[0,0],3:[0,0],4:[0,0]},S={1:[0,0],2:[0,0],3:[0,0],4:[0,0]};
+  Object.values(d.listen).forEach(o=>Object.entries(o).forEach(([t,c])=>{L[t][0]+=c[0];L[t][1]+=c[1]}));
+  const s0=d.speak0,s1=stats();
+  if(s0&&s1)[1,2,3,4].forEach(t=>{S[t]=[s1[t][0]-(s0[t]?.[0]||0),s1[t][1]-(s0[t]?.[1]||0)]});
+  const okL=[1,2,3,4].every(t=>L[t][1]>=G_LN&&L[t][0]>=G_LISTEN*L[t][1]),okS=[1,2,3,4].every(t=>S[t][1]>=G_SN&&S[t][0]>=G_SPEAK*S[t][1]);
+  return {L,S,pass:okL&&okS};
+}
+function gradState(){
+  const t=todayScores(),d=day();
+  if(t.pass&&!d.pass){d.pass=true;save()}
+  const days=Object.values(log.days).filter(v=>v.pass).length;
+  if(days>=G_DAYS&&!log.grad){log.grad=today();save()}
+  return {today:t,days};
+}
+const maint=()=>!!log.grad;
+function renderGrad(){
+  const g=gradState(),cell=(c,th,n)=>{const pct=c[1]?Math.round(100*c[0]/c[1]):0;return `<b class="${c[1]>=n&&c[0]>=th*c[1]?"ok":""}">${c[1]?pct+"%":"–"}<small style="color:var(--muted);font-weight:400"> ${c[1]}회</small></b>`};
+  if(log.grad){
+    $("gradTitle").textContent="🎓 성조 졸업!";$("gradDays").textContent=log.grad;
+    $("gradRule").textContent="이제 2~3일에 한 번, ‘전체’ 듣기를 3분만 하면 돼요. 말하기와 단어는 하고 싶을 때만 하세요.";
+  }else{$("gradDays").textContent=`합격한 날 ${g.days}/${G_DAYS}`+(g.today.pass?" · 오늘 합격 ✓":"")}
+  $("gradToday").innerHTML='<span>오늘</span><span>1성</span><span>2성</span><span>3성</span><span>4성</span>'+
+    '<span>듣기</span>'+[1,2,3,4].map(t=>cell(g.today.L[t],G_LISTEN,G_LN)).join("")+
+    (maint()?"":'<span>말하기</span>'+[1,2,3,4].map(t=>cell(g.today.S[t],G_SPEAK,G_SN)).join(""));
+  if(maint()){$("lead").innerHTML='졸업했어요. 며칠에 한 번 ① 듣기만 3분 하면 돼요. <a href="../">← 도구 목록</a>';}
+}
+setInterval(()=>{if(!document.hidden)renderGrad()},5000);
+const _ans=answer;answer=function(...a){_ans(...a);renderGrad()};
+if(maint()&&pairKey==="auto")pairKey="1-2-3-4";
+
+renderPairs();renderAnswers();renderScore();renderGrad();go(1);
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{}));
 </script>
 </body>
