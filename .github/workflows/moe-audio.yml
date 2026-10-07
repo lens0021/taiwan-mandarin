@@ -8,6 +8,9 @@ on:
       mode:
         description: "inspect | dump (index + sample wavs to branch moe-scratch) | extract"
         default: inspect
+      chars:
+        description: "dump: characters whose wavs to copy"
+        default: "媽麻馬罵湯糖躺燙埋買賣魚雨玉呼湖虎護梨李立七騎起氣飛肥匪費白百拜圖土兔煙眼燕詩十史是屋無五霧八拔把爸衣姨椅億翻煩反飯迷米蜜掏桃討套千錢淺欠央羊養樣接節姐借優油有又梅美妹拋袍跑泡豪好號吃池尺翅豬竹主住貓毛帽英贏影硬荒黃謊晃天田舔書熟數樹撈勞老酪揪九舊知直紙志"
 
 permissions:
   contents: write
@@ -18,14 +21,19 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: /tmp/moe
+          key: moe-concised-2014_20260929
       - name: Download
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           B=https://language.moe.gov.tw/001/Upload/Files/site_content/M0001/respub/download
           mkdir -p /tmp/moe && cd /tmp/moe
-          get(){ curl -fsSL --connect-timeout 30 --max-time 1500 --retry 2 -w "$2 http=%{http_code} bytes=%{size_download} speed=%{speed_download}\n" -o "$2" "$B/$1"; }
+          get(){ curl -fsSL --connect-timeout 30 --max-time 2400 --retry 2 -w "$2 http=%{http_code} bytes=%{size_download} speed=%{speed_download}\n" -o "$2" "$B/$1"; }
           get dict_concised_2014_20260929.zip text.zip
           get dict_concised_music_word_2014_20260929.zip audio.zip
-          ls -l
       - name: Inspect
         if: inputs.mode == 'inspect'
         run: |
@@ -43,9 +51,9 @@ jobs:
       - name: Dump to scratch branch
         if: inputs.mode == 'dump'
         run: |
-          cd /tmp/moe && mkdir d && cd d
-          unzip -q ../audio.zip dict_concised_word_2014_20260929.xlsx 'word_wav/word_wav/000[1-5].wav'
-          git init -q -b moe-scratch && cp $(find . -name '*.xlsx' -o -name '*.wav') . 2>/dev/null; rm -rf word_wav
+          pip install -q openpyxl
+          mkdir -p /tmp/d && python3 tools/moe_dump.py /tmp/moe/audio.zip /tmp/d "${{ inputs.chars }}"
+          cd /tmp/d && git init -q -b moe-scratch
           git config user.name "github-actions[bot]"; git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
           git add -A && git commit -qm scratch
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" moe-scratch
