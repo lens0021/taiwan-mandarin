@@ -1,0 +1,48 @@
+name: Fetch MOE audio
+
+# Downloads Taiwan MOE 《國語辭典簡編本》 data (CC BY-ND 3.0 TW) on a runner,
+# because the dev container can't reach language.moe.gov.tw.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "inspect = print zip listings; extract = run tools/moe_audio.py and commit"
+        default: inspect
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download
+        run: |
+          B=https://language.moe.gov.tw/001/Upload/Files/site_content/M0001/respub/download
+          mkdir -p /tmp/moe && cd /tmp/moe
+          curl -fsSL -o text.zip  $B/dict_concised_2014_20260929.zip
+          curl -fsSL -o audio.zip $B/dict_concised_music_word_2014_20260929.zip
+          ls -l
+      - name: Inspect
+        if: inputs.mode == 'inspect'
+        run: |
+          cd /tmp/moe
+          unzip -l text.zip | head -30
+          unzip -l audio.zip | head -40
+          unzip -l audio.zip | tail -5
+          mkdir t && cd t && unzip -q ../text.zip && find . -type f | head
+          for f in $(find . -type f -name '*.*' | grep -viE '\.(pdf|odt|doc)$' | head -3); do echo "== $f"; head -c 3000 "$f" | iconv -f utf-8 -t utf-8 -c; echo; done
+          python3 - <<'PY'
+          import glob,subprocess
+          for f in glob.glob('**/*', recursive=True):
+              if f.endswith(('.xlsx','.xls','.csv','.json','.txt','.xml')): print(f)
+          PY
+      - name: Extract
+        if: inputs.mode == 'extract'
+        run: |
+          python3 tools/moe_audio.py /tmp/moe
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add -A routine
+          git commit -m "routine: Taiwan MOE native-speaker clips" && git push || echo "nothing to commit"
