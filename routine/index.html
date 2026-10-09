@@ -253,10 +253,14 @@ async function ask(){
   renderAnswers();$("fb").innerHTML='<span class="note">몇 성일까요?</span>';$("again").disabled=false;
   try{await play(q.v,it.h)}catch(e){$("fb").innerHTML='<span class="no-t">소리를 재생하지 못했어요. 소리 설정을 확인해 보세요.</span>'}
 }
+const zyLen=z=>[...(z||"").replace(/[ˊˇˋ˙\s]/g,"")].length;
 function answer(t,btn){
   if(!q||q.answered)return;q.answered=true;
   const truth=q.it.t[0],ok=t===truth,d=day(),key=curKey();
   d.listen[key]=d.listen[key]||{};const c=d.listen[key][truth]=d.listen[key][truth]||[0,0];c[1]++;if(ok)c[0]++;
+  // Also split by how many Zhuyin symbols the syllable has (tone mark not counted), e.g. ㄇㄚ=2, ㄐㄧㄠ=3.
+  const len=zyLen(q.it.zy);d.byLen=d.byLen||{};const bl=d.byLen[key]=d.byLen[key]||{};bl[len]=bl[len]||{};
+  const cl=bl[len][truth]=bl[len][truth]||[0,0];cl[1]++;if(ok)cl[0]++;
   if(!ok){const k=truth+">"+t;d.conf[k]=(d.conf[k]||0)+1}
   save();streak=ok?streak+1:0;renderScore();
   $("answers").querySelectorAll(".ans").forEach(b=>{b.disabled=true;if(+b.dataset.t===truth)b.classList.add("ok");else if(b===btn)b.classList.add("no")});
@@ -334,6 +338,8 @@ function summary(){
   L.push("듣기: "+(ls.length?ls.join("; "):"안 함"));
   const cf=Object.entries(d.conf).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{const [a,b]=k.split(">");return `${a}성을 ${b}성으로 ${n}회`});
   if(cf.length)L.push("헷갈림: "+cf.join(", "));
+  Object.entries(d.byLen||{}).forEach(([k,o])=>L.push(`듣기 음절 길이별 ${k==="1-2-3-4"?"전체":k.replace("-","↔")}: `+
+    Object.keys(o).sort().map(n=>`${n}자 `+Object.entries(o[n]).map(([t,c])=>`${t}성 ${c[0]}/${c[1]}`).join(" ")).join(" · ")));
   const s0=d.speak0,s1=stats();
   if(s0&&s1){
     const sp=[1,2,3,4].map(t=>[t,s1[t][0]-(s0[t]?.[0]||0),s1[t][1]-(s0[t]?.[1]||0)]).filter(x=>x[2]>0).map(([t,ok,n])=>`${t}성 ${ok}/${n}`);
