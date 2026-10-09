@@ -17,6 +17,7 @@ def get(url, data=None, timeout=120):
 
 # Jiantan station to Shilin night market, a little wider
 S, W, N, E = 25.0820, 121.5170, 25.0920, 121.5290
+SKIP_OSM = os.environ.get("SKIP_OSM") == "1"
 Q = f"""[out:json][timeout:90];
 (
   way["highway"]({S},{W},{N},{E});
@@ -29,7 +30,7 @@ Q = f"""[out:json][timeout:90];
   way["building"]["name"]({S},{W},{N},{E});
 );
 out geom;"""
-for ep in ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
+for ep in [] if SKIP_OSM else ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
            "https://overpass.kumi.systems/api/interpreter"]:
     try:
         d = get(ep, urllib.parse.urlencode({"data": Q}).encode(), 180)
@@ -42,7 +43,7 @@ for ep in ["https://overpass-api.de/api/interpreter", "https://overpass.private.
         print("osm fail", ep, e)
 
 # Wikimedia Commons: files in a few categories, with license metadata
-CATS = ["Shilin Night Market", "Jiantan Station", "Shilin Cixian Temple", "Signs in Taipei",
+CATS = os.environ.get("CATS", "").split("|") if os.environ.get("CATS") else ["Shilin Night Market", "Jiantan Station", "Shilin Cixian Temple", "Signs in Taipei",
         "Taipei Metro signs", "Stinky tofu in Taiwan", "Bubble tea in Taiwan",
         "Night markets in Taipei", "Taipei Metro station signs", "Platform screen doors of Taipei Metro"]
 meta = []
