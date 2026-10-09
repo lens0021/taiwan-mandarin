@@ -55,7 +55,7 @@ a{color:var(--jade)}
 .ans small{font-weight:400;font-size:12px;color:var(--muted)}
 .ans.ok{border-color:var(--good);background:var(--jade-soft)}
 .ans.no{border-color:var(--bad)}
-.fb{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
+.fb{min-height:var(--fbh,172px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
 .fb .han{font-family:var(--f-han);font-size:34px;font-weight:700;line-height:1.1}
 .zy{white-space:nowrap;letter-spacing:.04em}
 .fb .zy-big{font-size:20px;letter-spacing:.06em}
@@ -73,7 +73,7 @@ textarea{width:100%;min-height:110px;font:12px var(--f-mono);background:var(--bg
 body.timeup .wrap{padding-bottom:96px}
 @media (prefers-reduced-motion:reduce){#timeUp{animation:none}}
 .gtab{display:grid;grid-template-columns:auto repeat(4,1fr);gap:4px 8px;font-size:12px;color:var(--muted);align-items:center}
-.gtab b{font-family:var(--f-mono);font-size:12px;color:var(--ink);font-weight:500}
+.gtab b{white-space:nowrap;font-family:var(--f-mono);font-size:12px;color:var(--ink);font-weight:500}
 .gtab .ok{color:var(--good);font-weight:700}
 .sum{font-family:var(--f-mono);font-size:13px;white-space:pre-wrap;margin:0;background:var(--bg);border-radius:10px;padding:10px}
 </style>
@@ -112,7 +112,7 @@ body.timeup .wrap{padding-bottom:96px}
       <button class="btn" id="again" disabled>▶ 다시 듣기</button>
       <button class="btn main" id="startQ">시작</button>
     </div>
-    <div class="score"><span>오늘 <b id="sc">0/0</b></span><span>연속 정답 <b id="streak">0</b></span></div>
+    <div class="score"><span id="curPair"></span><span>오늘 <b id="sc">0/0</b></span><span>연속 정답 <b id="streak">0</b></span></div>
   </section>
 
   <!-- Steps 2 and 3: tips above the shared 성조 거울 frame -->
@@ -208,7 +208,9 @@ function topAuto(){const w=autoWeights();return Object.keys(w).sort((a,b)=>w[b]-
 const curKey=()=>pairKey==="auto"?(autoKey||topAuto()):pairKey;
 function renderPairs(){
   $("pairs").innerHTML="";
-  const a=document.createElement("button");a.className="chip";a.textContent=pairKey==="auto"&&autoKey?`자동 (${autoKey.replace("-","↔")}성)`:"자동";
+  const a=document.createElement("button");a.className="chip";a.textContent="자동";
+  // The auto chip keeps one label so the chip rows (and the buttons below them) never reflow; the current pair shows under the answers.
+  $("curPair").textContent=pairKey==="auto"&&autoKey?`지금 ${autoKey.replace("-","↔")}성`:"";
   a.setAttribute("aria-pressed",pairKey==="auto");a.onclick=()=>{pairKey="auto";store.set("tm-routine-pair2","auto");autoKey=null;autoLeft=0;renderPairs();renderAnswers();if(q)ask()};$("pairs").appendChild(a);
   PAIR_OPTS.forEach(p=>{const k=p.join("-"),b=document.createElement("button");b.className="chip";
     b.textContent=p.length===4?"전체":p.join("↔")+"성";b.setAttribute("aria-pressed",k===pairKey);
