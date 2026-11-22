@@ -4,27 +4,103 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1f8a70">
-<title>대만 중국어 연습</title>
+<title>오늘의 대만 중국어</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <style>
-:root{--bg:#eef2f1;--surface:#fff;--ink:#15302f;--muted:#5d7472;--line:#cfdcda;--jade:#1f8a70}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1918;--surface:#172423;--ink:#e3eeec;--muted:#93aba8;--line:#2a3b39;--jade:#4cc3a0;color-scheme:dark}}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Noto Sans KR",sans-serif}
-main{max-width:560px;margin:0 auto;padding:24px 16px;display:flex;flex-direction:column;gap:12px}
-h1{margin:0;font-size:22px}p{margin:0;color:var(--muted)}
-a.tool{display:block;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);text-decoration:none}
-a.tool b{display:block;font-size:17px}a.tool:hover{border-color:var(--jade)}
+:root{--bg:#eef2f1;--surface:#fff;--ink:#15302f;--muted:#5d7472;--line:#cfdcda;--jade:#1f8a70;--jade-soft:rgba(31,138,112,.14)}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1918;--surface:#172423;--ink:#e3eeec;--muted:#93aba8;--line:#2a3b39;--jade:#4cc3a0;--jade-soft:rgba(76,195,160,.16);color-scheme:dark}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,"Noto Sans KR",sans-serif}
+main{max-width:560px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:24px}h2{margin:0;font-size:20px}
+p{margin:0}.muted{color:var(--muted);font-size:14px}
+.dots{display:flex;gap:6px}.dots i{flex:1;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--jade)}.dots i.cur{background:var(--jade);opacity:.4}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.go{display:block;width:100%;padding:18px;border:0;border-radius:14px;background:var(--jade);color:#fff;font-family:inherit;font-weight:600;font-size:18px;line-height:1.3;cursor:pointer;text-align:center;text-decoration:none}
+.go:disabled{opacity:.45;cursor:default}
+.term{font-size:34px;font-weight:700;text-align:center;letter-spacing:.04em}
+.zy{font-size:18px;text-align:center;color:var(--muted);letter-spacing:.1em}
+iframe{width:100%;border:0;display:block;min-height:80vh;border-radius:16px;background:var(--bg)}
+.small{text-align:center;font-size:13px}.small a{color:var(--muted)}
 </style>
 </head>
 <body>
 <main>
-  <h1>대만 중국어 연습</h1>
-  <p>2027년 2월 대만 여행 준비용 도구 모음이에요.</p>
-  <a class="tool" href="routine/"><b>오늘의 성조 루틴</b>듣기 5분, 말하기 5분, 두 글자 단어 5분을 순서대로 이끌어 줘요. 매일 여기서 시작하세요.</a>
-  <a class="tool" href="https://claude.ai/artifact/9g3u3ij4HXvRsi9nJ8mMhY"><b>가격 듣기</b>가게에서 말하는 가격(1~999元)을 듣고 내 지갑에서 낼 돈을 골라요.</a>
-  <a class="tool" href="tone/"><b>성조 거울</b>말하면 음높이를 그려서 1~4성을 대략 판정해 줘요.</a>
+  <div id="top"><h1>오늘의 대만 중국어</h1><p class="muted" id="dday"></p></div>
+  <div class="dots" id="dots" hidden><i></i><i></i><i></i></div>
+  <section id="view"></section>
+  <button class="go" id="go"></button>
+  <p class="small" id="foot" hidden><a href="all.html">도구 모음</a></p>
 </main>
+<script>
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const set=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+
+const WORDBOOK="https://claude.ai/artifact/PFwUZQouRrehtjRif1KsP8";
+/* Reels search words, one per day in turn (already used before this page: 早餐店 台北早餐 士林夜市 士林夜市美食 台灣小吃) */
+const REELS=[
+  ["台北美食","ㄊㄞˊ ㄅㄟˇ ㄇㄟˇ ㄕˊ"],["鹽酥雞","ㄧㄢˊ ㄙㄨ ㄐㄧ"],["滷肉飯","ㄌㄨˇ ㄖㄡˋ ㄈㄢˋ"],
+  ["牛肉麵","ㄋㄧㄡˊ ㄖㄡˋ ㄇㄧㄢˋ"],["珍珠奶茶","ㄓㄣ ㄓㄨ ㄋㄞˇ ㄔㄚˊ"],["豆花","ㄉㄡˋ ㄏㄨㄚ"],
+  ["小籠包","ㄒㄧㄠˇ ㄌㄨㄥˊ ㄅㄠ"],["夜市美食","ㄧㄝˋ ㄕˋ ㄇㄟˇ ㄕˊ"],["便利商店","ㄅㄧㄢˋ ㄌㄧˋ ㄕㄤ ㄉㄧㄢˋ"],
+  ["臭豆腐","ㄔㄡˋ ㄉㄡˋ ㄈㄨˇ"],["刈包","ㄍㄨㄚˋ ㄅㄠ"],["寧夏夜市","ㄋㄧㄥˊ ㄒㄧㄚˋ ㄧㄝˋ ㄕˋ"],
+  ["手搖飲","ㄕㄡˇ ㄧㄠˊ ㄧㄣˇ"],["饒河夜市","ㄖㄠˊ ㄏㄜˊ ㄧㄝˋ ㄕˋ"],["台南小吃","ㄊㄞˊ ㄋㄢˊ ㄒㄧㄠˇ ㄔ"],
+  ["九份老街","ㄐㄧㄡˇ ㄈㄣˋ ㄌㄠˇ ㄐㄧㄝ"],["早午餐","ㄗㄠˇ ㄨˇ ㄘㄢ"],["雞排","ㄐㄧ ㄆㄞˊ"]
+];
+
+/* state: {date, step 0=start 1=단어장 2=성조 3=Reels 4=끝, opened, reel} ; log of days in tm-today-log */
+let S=get("tm-today",{});
+if(S.date!==today()){
+  const L=get("tm-today-log",{n:0});
+  S={date:today(),step:0,opened:false,reel:L.n%REELS.length};
+  set("tm-today",S);
+}
+const save=()=>set("tm-today",S);
+const routineDone=()=>!!(get("tm-routine",{days:{}}).days[today()]||{}).done;
+
+const days=Math.ceil((new Date(2027,1,1)-new Date(today()))/864e5);
+$("dday").textContent=days>0?`대만 여행까지 ${days}일 (2월 기준)`:"대만 여행 중!";
+
+let poll=null;
+function next(){S.step++;S.opened=false;if(S.step===2&&routineDone())S.step=3;if(S.step===4){const L=get("tm-today-log",{n:0});if(L.last!==S.date){L.n++;L.last=S.date;set("tm-today-log",L)}}save();render()}
+
+function render(){
+  clearInterval(poll);
+  const v=$("view"),go=$("go"),s=S.step;
+  $("dots").hidden=s===0||s===4;
+  [...$("dots").children].forEach((d,i)=>{d.classList.toggle("on",i<s-1);d.classList.toggle("cur",i===s-1)});
+  $("foot").hidden=s!==4;go.hidden=false;go.disabled=false;
+  if(s===0){
+    v.innerHTML=`<div class="card"><h2>오늘 할 일은 세 가지예요</h2><p>단어장, 성조 루틴, 릴스 한 번. 버튼만 누르면 순서대로 안내할게요.</p></div>`;
+    go.textContent="시작";go.onclick=next;
+  }else if(s===1){
+    v.innerHTML=`<div class="card"><p class="muted">1/3 · 단어장</p><h2>단어장에서 오늘 몫을 해요</h2><p>새 창에서 단어장이 열려요. 거기서 <b>시작</b>을 누르고 끝까지 한 뒤 이 화면으로 돌아오세요.</p></div>`;
+    if(!S.opened){go.textContent="단어장 열기";go.onclick=()=>{S.opened=true;save();window.open(WORDBOOK,"_blank");render()}}
+    else{go.textContent="단어장 끝냈어요 → 다음";go.onclick=next}
+  }else if(s===2){
+    v.innerHTML=`<p class="muted" style="margin-bottom:8px">2/3 · 성조 루틴 (마이크를 허용해 주세요)</p><iframe id="rt" src="routine/" title="성조 루틴" allow="microphone; autoplay"></iframe>`;
+    go.textContent="성조 루틴이 끝나면 넘어가요";go.disabled=true;go.onclick=next;
+    const fr=$("rt");
+    poll=setInterval(()=>{
+      try{const h=fr.contentDocument.documentElement.scrollHeight;if(h>200)fr.style.height=h+"px"}catch(e){}
+      if(routineDone()){go.disabled=false;go.textContent="성조 루틴 끝 → 다음"}
+    },800);
+  }else if(s===3){
+    const [w,zy]=REELS[S.reel];
+    v.innerHTML=`<div class="card"><p class="muted">3/3 · 릴스</p><h2>오늘의 검색어</h2><div class="term">${w}</div><div class="zy">${zy}</div><p>인스타그램에서 이 검색어로 릴스를 10분쯤 봐요. 자막에서 아는 글자, 귀에 들리는 말만 잡으면 돼요. 유튜브라면 자동 더빙은 꺼 주세요.</p></div>`;
+    if(!S.opened){go.textContent="인스타그램에서 #"+w+" 열기";go.onclick=()=>{try{navigator.clipboard.writeText(w).catch(()=>{})}catch(e){}S.opened=true;save();window.open("https://www.instagram.com/explore/tags/"+encodeURIComponent(w)+"/","_blank");render()}}
+    else{go.textContent="다 봤어요 → 끝";go.onclick=next}
+  }else{
+    v.innerHTML=`<div class="card" style="text-align:center"><h2>오늘 끝! 🎉</h2><p>수고했어요. 내일 이 페이지에서 다시 <b>시작</b>만 누르면 돼요.</p></div>`;
+    go.hidden=true;
+  }
+  scrollTo(0,0);
+}
+render();
+</script>
 <script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))</script>
 </body>
 </html>
